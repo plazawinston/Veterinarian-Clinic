@@ -5,6 +5,7 @@ import appointments
 import dashboard
 import report
 import invoice
+from login import show_login
 
 ctk.set_appearance_mode("light")
 
@@ -44,5 +45,9 @@ class VetClinicApp(ctk.CTk):
         dashboard.show_dashboard_view(self.content)
 
 if __name__ == "__main__":
-    app = VetClinicApp()
-    app.mainloop()
+    # Show login window first
+    if show_login():
+        app = VetClinicApp()
+        app.mainloop()
+    else:
+        print("Login cancelled or failed")
