@@ -7,7 +7,7 @@ import report
 import invoice
 from login import show_login
 
-ctk.set_appearance_mode("light")
+ctk.set_appearance_mode("dark")
 
 class VetClinicApp(ctk.CTk):
     def __init__(self):
@@ -51,3 +51,4 @@ if __name__ == "__main__":
         app.mainloop()
     else:
         print("Login cancelled or failed")
+
