@@ -1,4 +1,4 @@
-Vet Clinic Management System
+VETERINARIAN CLINIC MANAGEMENT
 
 A comprehensive veterinary clinic management application built with **Python** and **CustomTkinter**. This desktop application helps manage patients (pets), appointments, client reports, and professional invoice generation with a modern, user-friendly interface.
 
