@@ -1,17 +1,17 @@
-#Vet Clinic Management System
+Vet Clinic Management System
 
 A comprehensive veterinary clinic management application built with **Python** and **CustomTkinter**. This desktop application helps manage patients (pets), appointments, client reports, and professional invoice generation with a modern, user-friendly interface.
 
-##Features
+Features
 
-###Core Modules
+Core Modules
 
-####Dashboard
+Dashboard
 - Overview of clinic statistics (Total Pets, Pet Owners, Appointments)
 - Today's appointment schedule
 - Real-time clinic overview
 
-####Patient Management
+Patient Management
 - Register and manage pet records
 - Store owner information (name, contact details)
 - Track pet details (species, breed, age)
@@ -25,29 +25,29 @@ A comprehensive veterinary clinic management application built with **Python** a
 - View appointments by date
 - Track appointment notes and reasons
 
-####Client History Reports
+Client History Reports
 - Generate comprehensive client reports
 - View complete pet and appointment history
 - Calculate total visits and spending
 - Export reports to text files
 - Search by owner name or contact
 
-####Invoice Generation
+Invoice Generation
 - Create professional invoices
 - Select multiple appointments for billing
 - Auto-generated invoice numbers with timestamps
 - Detailed breakdown by pet and service
 - Save invoices as text files
 
-##Getting Started
+Getting Started
 
-### System Requirements
+System Requirements
 - Python 3.11+
 - CustomTkinter 5.2.2
 - tkcalendar 1.6.1
 - SQLite3 (built-in with Python)
 
-### Installation
+Installation
 
 1. Install dependencies:
    ```bash
@@ -70,7 +70,7 @@ Default Credentials:
 
 ```
 
-## 📁 Project Structure
+ Project Structure
 
 ```
 .
@@ -87,9 +87,9 @@ Default Credentials:
 └── .gitignore               # Git ignore rules
 ```
 
-## 🗄️ Database Schema
+ Database Schema
 
-### patients
+patients
 - `id` (PK) - Unique patient identifier
 - `name` - Pet name
 - `species` - Pet species
@@ -99,13 +99,13 @@ Default Credentials:
 - `owner_contact` - Owner's phone/email
 - `notes` - Medical notes
 
-### doctors
+doctors
 - `id` (PK) - Unique doctor identifier
 - `name` - Doctor's name
 - `specialization` - Area of specialization
 - `fee` - Consultation fee
 
-### appointments
+appointments
 - `id` (PK) - Unique appointment identifier
 - `patient_id` (FK) - References patients table
 - `doctor_id` (FK) - References doctors table
@@ -114,26 +114,26 @@ Default Credentials:
 - `status` - scheduled/completed/cancelled
 - `notes` - Appointment notes
 
-## How to Use
+How to Use
 
-### Dashboard
+Dashboard
 1. Select "Dashboard" from the sidebar
 2. View clinic statistics and today's appointments at a glance
 
-### Managing Patients
+Managing Patients
 1. Click "Patients" in the sidebar
 2. Search for existing patients or create new ones
 3. Enter pet and owner information
 4. Click "Save" to store the record
 
-### Scheduling Appointments
+Scheduling Appointments
 1. Click "Appointments" in the sidebar
 2. Select a date from the calendar
 3. Choose pet, doctor, time, and status
 4. Add notes if needed
 5. Click "Save" to schedule
 
-### Generating Reports
+Generating Reports
 1. Click "Reports" in the sidebar
 2. Search for a client by name or phone
 3. View their pet list and appointment history
@@ -146,7 +146,7 @@ Default Credentials:
 4. Click "Preview" to see the invoice
 5. Click "Save Invoice" to export
 
-##  User Interface
+User Interface
 
 - **Professional Design** - Clean, modern interface with intuitive navigation
 - **Color-Coded Sections** - Each module has its own color theme
@@ -154,25 +154,25 @@ Default Credentials:
 - **Interactive Calendar** - Easy date selection for appointments
 - **Real-time Updates** - All changes reflect immediately
 
-## Currency
+Currency
 
 All monetary values are displayed in **Philippine Peso (₱)**
 
-##  Export Formats
+Export Formats
 
 - **Reports:** Text files (.txt)
 - **Invoices:** Text files (.txt)
 - **Naming Convention:** `report_YYYYMMDD_HHMMSS.txt`, `invoice_YYYYMMDD_HHMMSS.txt`
 
-## Security
+Security
 
 - Login authentication with credentials file
 - User sessions managed per login
 - Database stored locally with SQLite
 
-##  Development
+Development
 
-### Dependencies
+Dependencies
 
 | Package       | Version | Purpose              |
 |---------------|---------|----------------------|
@@ -180,14 +180,14 @@ All monetary values are displayed in **Philippine Peso (₱)**
 | tkcalendar    | 1.6.1   | Calendar widget      |
 | sqlite3       | Built-in | Database management |
 
-### Key Features
+Key Features
 
-- **OOP Architecture** - Modular design with separate concerns
-- **Database Abstraction** - SQL operations through Database class
-- **Dynamic UI** - Responsive layout with CustomTkinter
-- **Data Persistence** - SQLite for reliable data storage
+- OOP Architecture - Modular design with separate concerns
+- Database Abstraction - SQL operations through Database class
+- Dynamic UI - Responsive layout with CustomTkinter
+- Data Persistence - SQLite for reliable data storage
 
-## Pre-populated Data
+Pre-populated Data
 
 The database comes with 6 sample veterinarians:
 
@@ -200,7 +200,7 @@ The database comes with 6 sample veterinarians:
                     ('Dr. James Villaluna', 'Dermatology', 5000.00)
                 ]
 
-## License
+License
 
 This project is for project purposes only.
 
