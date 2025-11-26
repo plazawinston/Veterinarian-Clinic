@@ -21,7 +21,7 @@ Features:
 import customtkinter as ctk
 from tkinter import messagebox
 from tkcalendar import Calendar
-from datetime import datetime
+from datetime import datetime,date
 
 # Module-level variables injected by main.py
 app = None
@@ -76,7 +76,8 @@ def show_appointments_view(parent):
     ctk.CTkLabel(cal_header, text="📅 Select Date", 
                 font=("Arial", 20, "bold"),
                 text_color="white").pack(pady=10)
-    
+
+    #yung issue kanina, to avoid appointments on previous dates
     calendar = Calendar(left, selectmode='day', date_pattern='yyyy-mm-dd',
                       background='#3498db', foreground='white',
                       selectbackground='#e74c3c',
@@ -88,9 +89,31 @@ def show_appointments_view(parent):
                       font=('Arial', 12),
                       headersforeground='white',
                       borderwidth=2,
-                      showweeknumbers=False)
+                      showweeknumbers=False,
+                      mindate=datetime.now().date())
     calendar.pack(pady=20, padx=25, fill="both")
-    
+
+    def refresh_calendar_marks():
+        # remove existing marks
+        try:
+            for ev in calendar.get_calevents():
+                calendar.calevent_remove(ev)
+        except Exception:
+            pass
+        # query distinct appointment dates (exclude cancelled)
+        rows = db.query("SELECT DISTINCT date FROM appointments WHERE status<>?", ('cancelled',))
+        for r in rows:
+            try:
+                d = datetime.strptime(r['date'], '%Y-%m-%d').date()
+                calendar.calevent_create(d, 'appt', 'appt')
+            except Exception:
+                continue
+        # style tag for appointments
+        try:
+            calendar.tag_config('appt', background='#27ae60')
+        except Exception:
+            pass
+            
     apt_header = ctk.CTkFrame(left, fg_color="#34495e", corner_radius=10)
     apt_header.pack(fill="x", padx=15, pady=(15,10))
     ctk.CTkLabel(apt_header, text="📋 Appointments for Selected Date", 
@@ -322,3 +345,4 @@ def init_appointments(app_ref, db_ref):
     global app, db
     app = app_ref
     db = db_ref
+
