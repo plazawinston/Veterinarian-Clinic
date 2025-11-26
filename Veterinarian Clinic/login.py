@@ -1,16 +1,11 @@
 import customtkinter as ctk
-import json
-from pathlib import Path
 
-# Load credentials from JSON file
-CREDENTIALS_FILE = Path(__file__).with_name('credentials.json')
-
-def load_credentials():
-    try:
-        with open(CREDENTIALS_FILE, 'r') as f:
-            return json.load(f)
-    except:
-        return {"admin": "admin", "user": "password"}
+def get_credentials():
+    """Return hardcoded user credentials"""
+    return {
+        "admin": "vet2106",
+        "user": "password"
+    }
 
 def show_login():
     """Display login window and return True if login successful"""
@@ -90,7 +85,7 @@ def show_login():
             error_label.configure(text="❌ Please enter both username and password")
             return
         
-        credentials = load_credentials()
+        credentials = get_credentials()
         
         if username in credentials and credentials[username] == password:
             login_result[0] = True
