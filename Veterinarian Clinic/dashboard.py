@@ -16,8 +16,11 @@ def show_dashboard_view(parent):
     stats_frame.pack(fill="x", padx=20, pady=10)
     
     patients = len(db.query("SELECT * FROM patients"))
-    today_apts = len(db.query("SELECT * FROM appointments WHERE date=?", 
-                               (datetime.now().strftime('%Y-%m-%d'),)))
+        # to count only non-cancelled appointments for today
+    today_apts = len(db.query(
+        "SELECT * FROM appointments WHERE date=? AND status<>?", 
+        (datetime.now().strftime('%Y-%m-%d'), 'cancelled')
+    ))
     doctors = len(db.query("SELECT * FROM doctors"))
     
     for label, value, color in [
@@ -56,3 +59,4 @@ def show_dashboard_view(parent):
             text_box.insert("end", "\n")
     else:
         text_box.insert("end", "No appointments today.")
+
