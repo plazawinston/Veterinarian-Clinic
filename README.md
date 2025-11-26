@@ -59,7 +59,7 @@ Installation
    python main.py
    ```
 
-### Login
+Login
 
 When the application starts, you'll see a login screen:
 
