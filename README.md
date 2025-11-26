@@ -18,7 +18,7 @@ Patient Management
 - Medical notes and history
 - Search patients by name or owner
 
-####Appointment Scheduling
+Appointment Scheduling
 - Interactive calendar interface
 - Schedule appointments with pets and veterinarians
 - Manage appointment status (scheduled, completed, cancelled)
