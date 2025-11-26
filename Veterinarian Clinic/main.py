@@ -19,7 +19,7 @@ class VetClinicApp(ctk.CTk):
             module.app = self
             module.db = self.db
         
-        self.title("Vet Clinic Management")
+        self.title("VETERINARY CLINIC MANAGEMENT SYSTEM")
         self.geometry("1400x850")
         
         sidebar = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color="#2c3e50")
