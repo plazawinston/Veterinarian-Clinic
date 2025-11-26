@@ -104,12 +104,12 @@ def show_login():
     button_frame.pack(fill="x", pady=(15, 0))
     
     ctk.CTkButton(button_frame, text="🔓 LOGIN",
-                 command=login,
-                 fg_color="#2ecc71",
-                 hover_color="#27ae60",
-                 font=("Arial", 16, "bold"),
-                 height=40,
-                 corner_radius=8).pack(fill="x", padx=0, pady=(5, 10))
+                command=login,
+                fg_color="#2ecc71",
+                hover_color="#27ae60",
+                font=("Arial", 16, "bold"),
+                height=40,
+                corner_radius=8).pack(fill="x", padx=0, pady=(5, 10))
     
     ctk.CTkButton(button_frame, text="❌ EXIT",
                  command=login_window.destroy,

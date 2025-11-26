@@ -44,7 +44,7 @@ class Database:
                 [
                     ('Dr. Sarah Geronimo', 'Nutrition', 3500.00),
                     ('Dr. Carlos Garcia', 'Grooming', 2500.00),
-                    ('Dr. Princess Valdez', 'Surgery', 1500.00),
+                    ('Dr. Princess Valdez', 'Surgery', 15000.00),
                     ('Dr. Robert Tuazon', 'Dentistry', 5000.00),
                     ('Dr. Lisa Badlis', 'Ophthalmology', 4500.00),
                     ('Dr. James Villaluna', 'Dermatology', 5000.00)

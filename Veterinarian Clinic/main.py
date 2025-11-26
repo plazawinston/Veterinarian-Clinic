@@ -42,15 +42,15 @@ class VetClinicApp(ctk.CTk):
         ]:
             ctk.CTkButton(sidebar, text=text, command=cmd, font=("Arial", 16),
                          fg_color=color, height=50).pack(fill="x", padx=10, pady=5)
-            
-  # Exit button with warning message
+
+        # Exit button with confirmation
         def confirm_exit():
             if messagebox.askyesno("Exit", "Are you sure you want to exit the application?"):
                 self.destroy()
 
         ctk.CTkButton(sidebar, text="❌ EXIT", command=confirm_exit,
-                     fg_color="#e74c3c", hover_color="#c0392b",
-                     font=("Arial", 16, "bold"), height=50).pack(fill="x", padx=10, pady=5)
+                 fg_color="#e74c3c", hover_color="#c0392b",
+                 font=("Arial", 16, "bold"), height=50).pack(fill="x", padx=10, pady=5)
         
         dashboard.show_dashboard_view(self.content)
 
@@ -60,4 +60,3 @@ if __name__ == "__main__":
         app.mainloop()
     else:
         print("Login cancelled or failed")
-
