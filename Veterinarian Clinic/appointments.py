@@ -313,6 +313,9 @@ def show_appointments_view(parent):
         except Exception:
             pass
 
+    # Call refresh_calendar_marks here to highlight all scheduled dates on initial load
+    refresh_calendar_marks()
+    
     right = ctk.CTkFrame(container, fg_color="white", corner_radius=15,
                         border_width=2, border_color="#e0e0e0", width=450)
     right.pack(side="right", fill="both", padx=(15,0))
