@@ -66,12 +66,12 @@ def show_invoice_view(parent):
             FROM appointments a
             JOIN patients p ON a.patient_id = p.id
             JOIN doctors d ON a.doctor_id = d.id
-            WHERE p.owner_name = ? AND p.owner_contact = ?
+            WHERE p.owner_name = ? AND p.owner_contact = ? AND a.status = 'completed'
             ORDER BY a.date DESC, a.time DESC
         """, (client['owner_name'], client['owner_contact']))
         
         if not appointments:
-            ctk.CTkLabel(appointments_list, text="No appointments found for this client",
+            ctk.CTkLabel(appointments_list, text="No completed appointments found for this client",
                         text_color="gray").pack(pady=20)
             return
         
@@ -124,8 +124,12 @@ def show_invoice_view(parent):
     invoice_display = ctk.CTkTextbox(right, font=("Courier", 10))
     invoice_display.pack(fill="both", expand=True, padx=10, pady=10)
     
+    # store last exact generated invoice for export
+    refs['last_invoice'] = ""
+    
     def generate_invoice():
         invoice_display.delete("1.0", "end")
+        refs['last_invoice'] = ""
         
         selected = [(aid, data) for aid, data in selected_appointments.items() 
                    if data['var'].get()]
@@ -149,66 +153,77 @@ def show_invoice_view(parent):
             WHERE id = ?
         """, (first_apt['patient_id'],))[0]
         
-        invoice_display.insert("end", "=" * 70 + "\n")
-        invoice_display.insert("end", "                    VET CLINIC MANAGEMENT SYSTEM\n")
-        invoice_display.insert("end", "                      OFFICIAL INVOICE RECEIPT\n")
-        invoice_display.insert("end", "=" * 70 + "\n\n")
-        
-        invoice_display.insert("end", f"Invoice Number: {invoice_number}\n")
-        invoice_display.insert("end", f"Date: {invoice_date}\n\n")
-        
-        invoice_display.insert("end", "-" * 70 + "\n")
-        invoice_display.insert("end", "BILL TO:\n")
-        invoice_display.insert("end", f"  Name:    {client_info['owner_name']}\n")
-        invoice_display.insert("end", f"  Contact: {client_info['owner_contact']}\n")
-        invoice_display.insert("end", "-" * 70 + "\n\n")
-        
-        invoice_display.insert("end", "SERVICES RENDERED:\n")
-        invoice_display.insert("end", "=" * 70 + "\n\n")
+        lines = []
+        lines.append("=" * 70)
+        lines.append("                    VET CLINIC MANAGEMENT SYSTEM")
+        lines.append("                      OFFICIAL INVOICE RECEIPT")
+        lines.append("=" * 70)
+        lines.append(f"Invoice Number: {invoice_number}")
+        lines.append(f"Date Generated: {invoice_date}")
+        lines.append("-" * 70)
+        lines.append("BILL TO:")
+        lines.append(f"  Owner Name:    {client_info['owner_name']}")
+        lines.append(f"  Owner Contact: {client_info['owner_contact']}")
+        lines.append("-" * 70)
+        lines.append("SELECTED APPOINTMENTS (Exact Records):")
+        lines.append("=" * 70)
         
         subtotal = 0.0
         current_pet = None
         
-        sorted_items = sorted(selected, key=lambda x: (x[1]['data']['pet_name'], x[1]['data']['date']))
+        # sort by pet name then date for stable order
+        sorted_items = sorted(selected, key=lambda x: (x[1]['data']['pet_name'], x[1]['data']['date'], x[1]['data']['time']))
         
         for idx, (aid, apt_dict) in enumerate(sorted_items, 1):
             apt = apt_dict['data']
+            # exact appointment timestamp (ISO-like)
+            apt_iso = f"{apt['date']}T{apt['time']}"
             
             if current_pet != apt['pet_name']:
                 if current_pet is not None:
-                    invoice_display.insert("end", "\n")
+                    lines.append("")  # blank between pets
                 current_pet = apt['pet_name']
-                invoice_display.insert("end", f"Pet: {apt['pet_name']} ({apt['species']})\n")
-                invoice_display.insert("end", "-" * 70 + "\n")
+                lines.append(f"Pet: {apt['pet_name']} ({apt['species']})  [Patient ID: {apt['patient_id']}]")
+                lines.append("-" * 70)
             
-            fee_value = float(apt['fee']) if apt['fee'] else 0.0
+            # exact numeric fee (two decimals)
+            fee_value = float(apt['fee']) if apt['fee'] is not None else 0.0
             subtotal += fee_value
             fee_str = f"P{fee_value:,.2f}"
             
-            invoice_display.insert("end", f"{idx}. Date: {apt['date']} at {apt['time']}\n")
-            invoice_display.insert("end", f"   Service: {apt['specialization']}\n")
-            invoice_display.insert("end", f"   Provider: Dr. {apt['doctor_name']}\n")
-            invoice_display.insert("end", f"   Fee: {fee_str:>50}\n")
+            # include exact metadata: appointment id, patient_id, doctor_id, status, raw datetime
+            lines.append(f"{idx}. Appointment ID: {apt['id']}")
+            lines.append(f"   Date/Time (ISO): {apt_iso}")
+            lines.append(f"   Patient ID: {apt['patient_id']}")
+            lines.append(f"   Doctor ID: {apt['doctor_id']}")
+            lines.append(f"   Provider: Dr. {apt['doctor_name']}  ({apt['specialization']})")
+            lines.append(f"   Service Fee: {fee_str}")
+            lines.append(f"   Status: {apt['status']}")
             if apt['notes']:
-                invoice_display.insert("end", f"   Notes: {apt['notes']}\n")
-            invoice_display.insert("end", "\n")
+                lines.append(f"   Notes: {apt['notes']}")
+            lines.append("")  # spacing
         
-        invoice_display.insert("end", "=" * 70 + "\n")
-        invoice_display.insert("end", f"SUBTOTAL: {f'P{subtotal:,.2f}':>59}\n")
-        invoice_display.insert("end", "-" * 70 + "\n")
-        invoice_display.insert("end", f"TOTAL AMOUNT DUE: {f'P{subtotal:,.2f}':>51}\n")
-        invoice_display.insert("end", "=" * 70 + "\n\n")
+        lines.append("=" * 70)
+        lines.append(f"SUBTOTAL: P{subtotal:,.2f}")
+        lines.append("-" * 70)
+        lines.append(f"TOTAL AMOUNT DUE: P{subtotal:,.2f}")
+        lines.append("=" * 70)
+        lines.append("Thank you for choosing our veterinary services!")
+        lines.append("This is a computer-generated invoice.")
+        lines.append("=" * 70)
         
-        invoice_display.insert("end", "Thank you for choosing our veterinary services!\n")
-        invoice_display.insert("end", "For inquiries, please contact our clinic.\n\n")
-        invoice_display.insert("end", "=" * 70 + "\n")
-        invoice_display.insert("end", "           This is a computer-generated invoice.\n")
-        invoice_display.insert("end", "=" * 70 + "\n")
+        invoice_text = "\n".join(lines)
+        invoice_display.insert("end", invoice_text)
+        refs['last_invoice'] = invoice_text  # store exact invoice for export
     
     def print_invoice():
         try:
-            content = invoice_display.get("1.0", "end")
-            if not content.strip() or "No appointments selected" in content:
+            # prefer exact last generated invoice text (guarantees exact exported content)
+            content = refs.get('last_invoice', "").strip()
+            if not content:
+                # fallback to textbox content if nothing generated
+                content = invoice_display.get("1.0", "end").strip()
+            if not content:
                 messagebox.showerror("Error", "No invoice to print. Generate an invoice first.")
                 return
             

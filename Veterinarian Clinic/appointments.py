@@ -142,11 +142,13 @@ def show_appointments_view(parent):
             d = db.query("SELECT * FROM doctors WHERE id=?", (apt['doctor_id'],))
             if d:
                 d = d[0]
+                # format doctor display as: "id: Name — Specialization — ₱price"
                 try:
-                    fee = f"₱{float(d['fee']):,.2f}"
+                    fee_str = f"₱{float(d['fee']):,.2f}"
                 except Exception:
-                    fee = f"₱{d['fee']}"
-                doctor_var.set(f"{d['id']}: {d['name']} ({d['specialization']}) - {fee}")
+                    fee_str = f"₱{d['fee']}"
+                spec = d['specialization'] if ('specialization' in d.keys()) else ""
+                doctor_var.set(f"{d['id']}: {d['name']} — {spec} — {fee_str}")
             time_var.set(apt['time'])
             status_var.set(apt['status'])
             notes_text.delete("1.0", "end")
@@ -241,10 +243,11 @@ def show_appointments_view(parent):
                         if d:
                             d = d[0]
                             try:
-                                fee = f"₱{float(d['fee']):,.2f}"
+                                fee_str = f"₱{float(d['fee']):,.2f}"
                             except Exception:
-                                fee = f"₱{d['fee']}"
-                            dval = f"{d['id']}: {d['name']} ({d['specialization']}) - {fee}"
+                                fee_str = f"₱{d['fee']}"
+                            spec = d['specialization'] if ('specialization' in d.keys()) else ""
+                            dval = f"{d['id']}: {d['name']} — {spec} — {fee_str}"
                             try:
                                 doctor_var.set(dval)
                             except Exception:
@@ -327,7 +330,7 @@ def show_appointments_view(parent):
     ctk.CTkLabel(form_container, text="Patient:", 
                 font=("Arial", 13, "bold"),
                 text_color="#2c3e50").pack(anchor="w", padx=10, pady=(15,5))
-    patients = db.query("SELECT * FROM patients ORDER BY name")
+    patients = db.query("SELECT * FROM patients ORDER BY id ASC")
     patient_options = [f"{p['id']}: {p['name']} ({p['species']}) - {p['owner_name']}" for p in patients]
     patient_var = ctk.StringVar(value=patient_options[0] if patient_options else "")
     patient_dd = ctk.CTkComboBox(form_container, variable=patient_var, values=patient_options, 
@@ -338,27 +341,31 @@ def show_appointments_view(parent):
     ctk.CTkLabel(form_container, text="Doctor:", 
                 font=("Arial", 13, "bold"),
                 text_color="#2c3e50").pack(anchor="w", padx=10, pady=(10,5))
-    doctors = db.query("SELECT * FROM doctors ORDER BY name")
+    doctors = db.query("SELECT * FROM doctors ORDER BY id ASC")
+    # format visible doctor entries: "id: Name — Specialization — ₱price"
     doctor_options = []
     for d in doctors:
         try:
-            fee_display = f"₱{float(d['fee']):,.2f}"
+            fee_str = f"₱{float(d['fee']):,.2f}"
         except Exception:
-            fee_display = f"₱{d['fee']}"
-        doctor_options.append(f"{d['id']}: {d['name']} ({d['specialization']}) - {fee_display}")
+            fee_str = f"₱{d['fee']}"
+        spec = d['specialization'] if ('specialization' in d.keys()) else ""
+        doctor_options.append(f"{d['id']}: {d['name']} — {spec} — {fee_str}")
+    # use slightly smaller font so long entries fit better
     doctor_var = ctk.StringVar(value=doctor_options[0] if doctor_options else "")
     doctor_dd = ctk.CTkComboBox(form_container, variable=doctor_var, values=doctor_options,
-                            state="readonly", height=35, font=("Arial", 12),
-                            dropdown_font=("Arial", 11))
+                                state="readonly", height=34, font=("Arial", 11),
+                                dropdown_font=("Arial", 10))
     doctor_dd.pack(fill="x", padx=10, pady=(0,10))
+    # small helper label under the combobox (optional) can be added if needed to show more details
     
     ctk.CTkLabel(form_container, text="Time:", 
                 font=("Arial", 13, "bold"),
                 text_color="#2c3e50").pack(anchor="w", padx=10, pady=(10,5))
-    time_var = ctk.StringVar(value="09:00")
+    time_var = ctk.StringVar(value="08:00 AM")
     time_dd = ctk.CTkComboBox(form_container, variable=time_var,
-                             values=["09:00", "10:00", "11:00", "12:00", 
-                                    "14:00", "15:00", "16:00", "17:00"],
+                             values=["08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM",
+                                    "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"],
                              state="readonly", height=35, font=("Arial", 12))
     time_dd.pack(fill="x", padx=10, pady=(0,10))
     
@@ -419,10 +426,39 @@ def show_appointments_view(parent):
             doctor_raw = safe_get(doctor_dd, doctor_var)
             patient_id = parse_id(patient_raw)
             doctor_id = parse_id(doctor_raw)
+            time_selected = safe_get(time_dd, time_var)  # Get time from combobox directly
+            status_selected = safe_get(status_dd, status_var)  # Get status from combobox directly
             notes = notes_text.get("1.0", "end").strip()
             
             import uuid
             apt_id = str(uuid.uuid4())[:8]
+
+            # Check if doctor already has an appointment at this time on this date
+            try:
+                did = int(doctor_id)
+            except Exception:
+                did = doctor_id
+
+            try:
+                pid = int(patient_id)
+            except Exception:
+                pid = patient_id
+
+            # Query for conflicting appointments - check BOTH doctor and patient
+            conflict_check = db.query("""
+                SELECT * FROM appointments 
+                WHERE (doctor_id=? OR patient_id=?) 
+                AND date=? AND time=? AND status<>'cancelled'
+            """, (did, pid, selected_date[0], time_selected))
+
+            if conflict_check:
+                # If we're editing and it's the same appointment, allow it
+                if not selected_apt[0] or selected_apt[0] != conflict_check[0]['id']:
+                    conflicted_apt = conflict_check[0]
+                    conflicted_entity = "Doctor" if conflicted_apt['doctor_id'] == did else "Patient"
+                    messagebox.showerror("Schedule Conflict", 
+                        f"{conflicted_entity} already has an appointment at {time_selected} on {selected_date[0]}")
+                    return
 
             # If an appointment is selected, update that row. Otherwise insert a new appointment.
             if selected_apt[0]:
@@ -439,7 +475,7 @@ def show_appointments_view(parent):
 
                 db.execute("""
                     UPDATE appointments SET patient_id=?, doctor_id=?, date=?, time=?, status=?, notes=? WHERE id=?
-                """, (pid, did, selected_date[0], time_var.get(), status_var.get(), notes, selected_apt[0]))
+                """, (pid, did, selected_date[0], time_selected, status_selected, notes, selected_apt[0]))
             else:
                 try:
                     pid = int(patient_id)
@@ -453,7 +489,7 @@ def show_appointments_view(parent):
                 db.execute("""
                     INSERT INTO appointments (id, patient_id, doctor_id, date, time, status, notes)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (apt_id, pid, did, selected_date[0], time_var.get(), status_var.get(), notes))
+                """, (apt_id, pid, did, selected_date[0], time_selected, status_selected, notes))
 
             # After write, verify by re-reading the saved row and refresh the UI
             try:
@@ -464,7 +500,7 @@ def show_appointments_view(parent):
                     saved_pid = s.get('patient_id')
                     saved_did = s.get('doctor_id')
                     # compare canonicalized ids
-                    ok = (str(saved_pid) == str(patient_id)) and (str(saved_did) == str(doctor_id)) and (s.get('time') == time_var.get())
+                    ok = (str(saved_pid) == str(patient_id)) and (str(saved_did) == str(doctor_id)) and (s.get('time') == time_selected)
                     if ok:
                         messagebox.showinfo("✅ Success", "Appointment saved and verified!")
                     else:
@@ -473,12 +509,6 @@ def show_appointments_view(parent):
                     messagebox.showwarning("Warning", "Appointment write completed but could not verify saved row.")
             except Exception:
                 pass
-            else:
-                db.execute("""
-                    INSERT INTO appointments (id, patient_id, doctor_id, date, time, status, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (apt_id, patient_id, doctor_id, selected_date[0], time_var.get(), status_var.get(), notes))
-                messagebox.showinfo("✅ Success", "Appointment scheduled successfully!")
 
             clear_selection()
             # refresh calendar marks (in case date changed) and reload visible appointments
