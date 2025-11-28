@@ -24,6 +24,12 @@ def show_patients_view(parent):
     search_entry = ctk.CTkEntry(search_frame, placeholder_text="Search...", width=300)
     search_entry.pack(side="left", padx=5)
     
+    # Get unique species for combo box
+    species_list = ["All"] + [row['species'] for row in db.query("SELECT DISTINCT species FROM patients ORDER BY species")]
+    species_combo = ctk.CTkComboBox(search_frame, values=species_list, width=120, command=lambda s: load_patients(search_entry.get(), "" if s == "All" else s))
+    species_combo.pack(side="left", padx=5)
+    species_combo.set("All")
+    
     # Scrollable frame to hold patient cards
     patient_container = ctk.CTkScrollableFrame(left, fg_color="transparent")
     patient_container.pack(fill="both", expand=True, padx=10, pady=10)
@@ -80,26 +86,32 @@ def show_patients_view(parent):
 
         return card
 
-    def load_patients(query=""):
+    def load_patients(query="", species=""):
         # clear container
         for w in patient_container.winfo_children():
             w.destroy()
+        sql = "SELECT * FROM patients"
+        params = []
+        conditions = []
         if query:
-            patients = db.query(
-                "SELECT * FROM patients WHERE name LIKE ? OR owner_name LIKE ?",
-                (f"%{query}%", f"%{query}%")
-            )
-        else:
-            patients = db.query("SELECT * FROM patients ORDER BY name")
+            conditions.append("(name LIKE ? OR owner_name LIKE ?)")
+            params.extend([f"%{query}%", f"%{query}%"])
+        if species:
+            conditions.append("species = ?")
+            params.append(species)
+        if conditions:
+            sql += " WHERE " + " AND ".join(conditions)
+        sql += " ORDER BY name"
+        patients = db.query(sql, tuple(params))
 
         for p in patients:
             make_patient_card(p)
     
     ctk.CTkButton(search_frame, text="Search", width=80,
-                 command=lambda: load_patients(search_entry.get())).pack(side="left", padx=5)
+                 command=lambda: load_patients(search_entry.get(), "" if species_combo.get() == "All" else species_combo.get())).pack(side="left", padx=5)
     ctk.CTkButton(search_frame, text="Clear", width=80,
-                 command=lambda: [search_entry.delete(0, "end"), load_patients()]).pack(side="left")
-    
+                 command=lambda: [search_entry.delete(0, "end"), species_combo.set("All"), load_patients()]).pack(side="left")
+            
     right = ctk.CTkFrame(container, fg_color="white", corner_radius=10, width=400)
     right.pack(side="right", fill="both", padx=(10,0))
     right.pack_propagate(False)
@@ -107,14 +119,26 @@ def show_patients_view(parent):
     ctk.CTkLabel(right, text="Patient Details", font=("Arial", 20, "bold")).pack(pady=15)
     
     fields = {}
+
+    # Validation function for integer-only fields
+    def validate_integer(P):
+        if P == "" or P.isdigit():
+            return True
+        return False
+
+    vcmd = (right.register(validate_integer), '%P')
+
     for label in ["Name", "Species", "Breed", "Age", "Owner Name", "Owner Contact", "Notes"]:
         ctk.CTkLabel(right, text=f"{label}:").pack(anchor="w", padx=10, pady=(5,0))
         if label == "Notes":
             fields[label] = ctk.CTkTextbox(right, height=80)
         else:
-            fields[label] = ctk.CTkEntry(right)
+            if label in ["Age", "Owner Contact"]:
+                fields[label] = ctk.CTkEntry(right, validate="key", validatecommand=vcmd)
+            else:
+                fields[label] = ctk.CTkEntry(right)
         fields[label].pack(fill="x", padx=10, pady=5)
-    
+                
     selected_id = [None]
     
     def clear_form():
