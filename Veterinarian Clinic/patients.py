@@ -106,11 +106,20 @@ def show_patients_view(parent):
 
         for p in patients:
             make_patient_card(p)
-    
+
+    def refresh_patients():
+        # Update species list
+        new_species_list = ["All"] + [row['species'] for row in db.query("SELECT DISTINCT species FROM patients ORDER BY species")]
+        species_combo.configure(values=new_species_list)
+        # Reload patients with current search and species
+        load_patients(search_entry.get(), "" if species_combo.get() == "All" else species_combo.get())
+
     ctk.CTkButton(search_frame, text="Search", width=80,
                  command=lambda: load_patients(search_entry.get(), "" if species_combo.get() == "All" else species_combo.get())).pack(side="left", padx=5)
     ctk.CTkButton(search_frame, text="Clear", width=80,
                  command=lambda: [search_entry.delete(0, "end"), species_combo.set("All"), load_patients()]).pack(side="left")
+    ctk.CTkButton(search_frame, text="Refresh", width=80,
+                 command=refresh_patients).pack(side="left", padx=5)
             
     right = ctk.CTkFrame(container, fg_color="white", corner_radius=10, width=400)
     right.pack(side="right", fill="both", padx=(10,0))
