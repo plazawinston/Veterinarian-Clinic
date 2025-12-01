@@ -18,6 +18,8 @@ class Database:
     def _setup_tables(cls):
         cur = cls._conn.cursor()
         cur.executescript('''
+            PRAGMA foreign_keys = ON;
+            
             CREATE TABLE IF NOT EXISTS patients (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT, species TEXT, breed TEXT, age INTEGER,
@@ -35,6 +37,26 @@ class Database:
                 date TEXT, time TEXT, status TEXT, notes TEXT,
                 FOREIGN KEY(patient_id) REFERENCES patients(id),
                 FOREIGN KEY(doctor_id) REFERENCES doctors(id)
+            );
+            
+            CREATE TABLE IF NOT EXISTS diagnoses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                appointment_id TEXT NOT NULL,
+                patient_id INTEGER,
+                doctor_id INTEGER,
+                diagnosis_text TEXT,
+                diagnosis_date TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(appointment_id) REFERENCES appointments(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS medications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                diagnosis_id INTEGER NOT NULL,
+                medicine_name TEXT,
+                quantity INTEGER DEFAULT 1,
+                price REAL DEFAULT 0.0,
+                FOREIGN KEY(diagnosis_id) REFERENCES diagnoses(id) ON DELETE CASCADE
             );
         ''')
         
@@ -61,3 +83,15 @@ class Database:
     def execute(cls, sql, params=()):
         cls.get_connection().execute(sql, params)
         cls.get_connection().commit()
+        
+    @classmethod
+    def execute_returning_id(cls, sql, params=()):
+        """
+        Execute an INSERT/UPDATE/DELETE and return the last inserted row id.
+        Usage: Database.execute_returning_id("INSERT INTO ...", (val1, val2))
+        """
+        conn = cls.get_connection()
+        cur = conn.cursor()
+        cur.execute(sql, params)
+        conn.commit()
+        return cur.lastrowid

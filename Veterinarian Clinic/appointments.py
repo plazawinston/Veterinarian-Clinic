@@ -303,6 +303,7 @@ def show_appointments_view(parent):
 
     def clear_selection():
         selected_apt[0] = None
+        selected_card_apt[0] = None
         patient_var.set(patient_options[0] if patient_options else "")
         doctor_var.set(doctor_options[0] if doctor_options else "")
         time_var.set("09:00")
@@ -310,6 +311,15 @@ def show_appointments_view(parent):
         notes_text.delete("1.0", "end")
         try:
             delete_btn.configure(state="disabled")
+        except Exception:
+            pass
+        try:
+            selected_apt_label.configure(text="Selected Appointment ID: None")
+        except Exception:
+            pass
+        # Refresh the form UI by reloading appointments
+        try:
+            load_appointments(selected_date[0])
         except Exception:
             pass
 

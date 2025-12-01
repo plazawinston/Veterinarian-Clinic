@@ -80,7 +80,29 @@ def show_invoice_view(parent):
             frame.pack(fill="x", pady=5, padx=5)
             
             var = ctk.BooleanVar(value=False)
-            selected_appointments[apt['id']] = {'var': var, 'data': apt}
+            
+            diagnoses = db.query("SELECT id FROM diagnoses WHERE appointment_id = ?", (apt['id'],))
+            has_diagnosis = len(diagnoses) > 0
+            
+            med_total = 0.0
+            diagnosis_ids = []
+            if has_diagnosis:
+                for diag in diagnoses:
+                    diagnosis_ids.append(diag['id'])
+                    meds = db.query("""
+                        SELECT SUM(price * quantity) as total 
+                        FROM medications 
+                        WHERE diagnosis_id = ?
+                    """, (diag['id'],))
+                    if meds and meds[0]['total']:
+                        med_total += float(meds[0]['total'])
+            
+            apt_dict = dict(apt)
+            apt_dict['has_diagnosis'] = has_diagnosis
+            apt_dict['diagnosis_ids'] = diagnosis_ids
+            apt_dict['medication_total'] = med_total
+            
+            selected_appointments[apt['id']] = {'var': var, 'data': apt_dict}
             
             checkbox = ctk.CTkCheckBox(frame, text="", variable=var, width=30)
             checkbox.pack(side="left", padx=10, pady=10)
@@ -95,11 +117,17 @@ def show_invoice_view(parent):
                         text=f"{apt['date']} {apt['time']} - {apt['pet_name']} ({apt['species']})",
                         font=("Arial", 12, "bold"),
                         anchor="w").pack(anchor="w")
+            
+            doctor_text = f"Dr. {apt['doctor_name']} - {apt['specialization']} | Fee: {fee_str}"
+            if med_total > 0:
+                doctor_text += f" | Meds: P{med_total:,.2f}"
+            
             ctk.CTkLabel(info_frame,
-                        text=f"Dr. {apt['doctor_name']} - {apt['specialization']} | {fee_str} | {apt['status'].upper()}",
+                        text=doctor_text,
                         font=("Arial", 10),
                         text_color="#666",
                         anchor="w").pack(anchor="w")
+            
             if apt['notes']:
                 ctk.CTkLabel(info_frame,
                             text=f"Notes: {apt['notes']}",
@@ -124,7 +152,6 @@ def show_invoice_view(parent):
     invoice_display = ctk.CTkTextbox(right, font=("Courier", 10))
     invoice_display.pack(fill="both", expand=True, padx=10, pady=10)
     
-    # store last exact generated invoice for export
     refs['last_invoice'] = ""
     
     def generate_invoice():
@@ -165,63 +192,80 @@ def show_invoice_view(parent):
         lines.append(f"  Owner Name:    {client_info['owner_name']}")
         lines.append(f"  Owner Contact: {client_info['owner_contact']}")
         lines.append("-" * 70)
-        lines.append("SELECTED APPOINTMENTS (Exact Records):")
+        lines.append("SERVICES & MEDICATIONS:")
         lines.append("=" * 70)
         
-        subtotal = 0.0
+        doctor_fees_total = 0.0
+        medications_total = 0.0
         current_pet = None
         
-        # sort by pet name then date for stable order
         sorted_items = sorted(selected, key=lambda x: (x[1]['data']['pet_name'], x[1]['data']['date'], x[1]['data']['time']))
         
         for idx, (aid, apt_dict) in enumerate(sorted_items, 1):
             apt = apt_dict['data']
-            # exact appointment timestamp (ISO-like)
-            apt_iso = f"{apt['date']}T{apt['time']}"
             
             if current_pet != apt['pet_name']:
                 if current_pet is not None:
-                    lines.append("")  # blank between pets
+                    lines.append("")
                 current_pet = apt['pet_name']
                 lines.append(f"Pet: {apt['pet_name']} ({apt['species']})  [Patient ID: {apt['patient_id']}]")
                 lines.append("-" * 70)
             
-            # exact numeric fee (two decimals)
             fee_value = float(apt['fee']) if apt['fee'] is not None else 0.0
-            subtotal += fee_value
+            doctor_fees_total += fee_value
             fee_str = f"P{fee_value:,.2f}"
             
-            # include exact metadata: appointment id, patient_id, doctor_id, status, raw datetime
-            lines.append(f"{idx}. Appointment ID: {apt['id']}")
-            lines.append(f"   Date/Time (ISO): {apt_iso}")
-            lines.append(f"   Patient ID: {apt['patient_id']}")
-            lines.append(f"   Doctor ID: {apt['doctor_id']}")
-            lines.append(f"   Provider: Dr. {apt['doctor_name']}  ({apt['specialization']})")
-            lines.append(f"   Service Fee: {fee_str}")
-            lines.append(f"   Status: {apt['status']}")
+            lines.append(f"{idx}. Appointment: {apt['date']} at {apt['time']}")
+            lines.append(f"   Provider: Dr. {apt['doctor_name']} ({apt['specialization']})")
+            lines.append(f"   Doctor's Fee: {fee_str}")
+            
+            if apt.get('has_diagnosis') and apt.get('diagnosis_ids'):
+                for diag_id in apt['diagnosis_ids']:
+                    diagnosis = db.query("SELECT * FROM diagnoses WHERE id = ?", (diag_id,))
+                    if diagnosis:
+                        diag = diagnosis[0]
+                        diag_text = diag['diagnosis_text']
+                        if len(diag_text) > 80:
+                            diag_text = diag_text[:80] + "..."
+                        lines.append(f"   Diagnosis: {diag_text}")
+                    
+                    meds = db.query("SELECT * FROM medications WHERE diagnosis_id = ?", (diag_id,))
+                    if meds:
+                        lines.append("   Medications:")
+                        for med in meds:
+                            med_price = float(med['price']) if med['price'] else 0.0
+                            med_qty = int(med['quantity']) if med['quantity'] else 1
+                            med_subtotal = med_price * med_qty
+                            medications_total += med_subtotal
+                            lines.append(f"     - {med['medicine_name']} x{med_qty} @ P{med_price:,.2f} = P{med_subtotal:,.2f}")
+            
             if apt['notes']:
                 lines.append(f"   Notes: {apt['notes']}")
-            lines.append("")  # spacing
+            lines.append("")
+        
+        grand_total = doctor_fees_total + medications_total
         
         lines.append("=" * 70)
-        lines.append(f"SUBTOTAL: P{subtotal:,.2f}")
-        lines.append("-" * 70)
-        lines.append(f"TOTAL AMOUNT DUE: P{subtotal:,.2f}")
+        lines.append("                         INVOICE SUMMARY")
         lines.append("=" * 70)
+        lines.append(f"  Doctor's Fees Subtotal:      P{doctor_fees_total:,.2f}")
+        lines.append(f"  Medications Subtotal:        P{medications_total:,.2f}")
+        lines.append("-" * 70)
+        lines.append(f"  GRAND TOTAL:                 P{grand_total:,.2f}")
+        lines.append("=" * 70)
+        lines.append("")
         lines.append("Thank you for choosing our veterinary services!")
         lines.append("This is a computer-generated invoice.")
         lines.append("=" * 70)
         
         invoice_text = "\n".join(lines)
         invoice_display.insert("end", invoice_text)
-        refs['last_invoice'] = invoice_text  # store exact invoice for export
+        refs['last_invoice'] = invoice_text
     
     def print_invoice():
         try:
-            # prefer exact last generated invoice text (guarantees exact exported content)
             content = refs.get('last_invoice', "").strip()
             if not content:
-                # fallback to textbox content if nothing generated
                 content = invoice_display.get("1.0", "end").strip()
             if not content:
                 messagebox.showerror("Error", "No invoice to print. Generate an invoice first.")
@@ -246,3 +290,123 @@ def show_invoice_view(parent):
     
     load_appointments()
     generate_invoice()
+
+def _get_medications_for_appointment(appointment_id):
+    """
+    Return list of medication dicts and medication total for an appointment's diagnosis.
+    Each dict: {'medicine_name','quantity','price','subtotal'}
+    """
+    sql = """
+        SELECT m.medicine_name, m.quantity, m.price
+        FROM medications m
+        JOIN diagnoses d ON m.diagnosis_id = d.id
+        WHERE d.appointment_id = ?
+        ORDER BY m.id ASC
+    """
+    rows = db.query(sql, (appointment_id,)) or []
+    meds = []
+    med_total = 0.0
+    for r in rows:
+        # support sqlite3.Row, dict-like, or tuple
+        try:
+            name = r['medicine_name']
+            qty = int(r['quantity'])
+            price = float(r['price'])
+        except Exception:
+            # tuple-like fallback
+            name = r[0]
+            qty = int(r[1])
+            price = float(r[2])
+        subtotal = qty * price
+        meds.append({'medicine_name': name, 'quantity': qty, 'price': price, 'subtotal': subtotal})
+        med_total += subtotal
+    return meds, med_total
+
+
+def build_invoice_text(invoice_data):
+    """
+    Build invoice text including diagnosis and prescribed medications.
+    invoice_data should include keys like: appointment_id, patient_name, owner_name,
+    diagnosis_text, service_total, date, time, doctor_name, etc.
+    """
+    med_total = 0.0
+    lines = []
+    lines.append("======================================================================")
+    lines.append("                    VET CLINIC MANAGEMENT SYSTEM")
+    lines.append("                              INVOICE")
+    lines.append("======================================================================")
+    lines.append(f"Invoice Date: {invoice_data.get('generated_at', '')}")
+    lines.append("----------------------------------------------------------------------")
+    lines.append("PATIENT / OWNER:")
+    lines.append(f"  Pet Name: {invoice_data.get('patient_name','')}")
+    lines.append(f"  Owner:    {invoice_data.get('owner_name','')}")
+    lines.append("")
+    lines.append("ATTENDING VETERINARIAN:")
+    lines.append(f"  {invoice_data.get('doctor_name','')}")
+    lines.append("----------------------------------------------------------------------")
+    lines.append("APPOINTMENT:")
+    lines.append(f"  Date: {invoice_data.get('date','')}    Time: {invoice_data.get('time','')}")
+    lines.append("----------------------------------------------------------------------")
+    if invoice_data.get('diagnosis_text'):
+        lines.append("DIAGNOSIS:")
+        lines.append(f"  {invoice_data.get('diagnosis_text')}")
+        lines.append("----------------------------------------------------------------------")
+
+    appointment_id = invoice_data.get('appointment_id')
+    if appointment_id:
+        meds, med_total = _get_medications_for_appointment(appointment_id)
+        if meds:
+            lines.append("PRESCRIBED MEDICATIONS:")
+            for i, m in enumerate(meds, 1):
+                lines.append(f"  {i}. {m['medicine_name']}")
+                lines.append(f"     Quantity: {m['quantity']} | Unit Price: P{m['price']:.2f} | Subtotal: P{m['subtotal']:.2f}")
+            lines.append("")
+            lines.append(f"  MEDICATION TOTAL: P{med_total:.2f}")
+            lines.append("----------------------------------------------------------------------")
+
+    service_total = float(invoice_data.get('service_total', 0.0))
+    grand_total = service_total + med_total
+    lines.append(f"SERVICE TOTAL: P{service_total:.2f}")
+    lines.append(f"MEDICATIONS TOTAL: P{med_total:.2f}")
+    lines.append(f"GRAND TOTAL: P{grand_total:.2f}")
+    lines.append("======================================================================")
+    return "\n".join(lines)
+
+
+def show_invoice_preview_for_appointment(appointment_id):
+    """
+    Example helper: gather data, build text, and open a simple preview window.
+    Call this from your existing preview command instead of the old preview.
+    """
+    # fetch appointment, patient, diagnosis and doctor info (adjust columns to your schema)
+    apt = db.query("SELECT a.id, a.date, a.time, p.name as patient_name, o.name as owner_name, d.diagnosis_text, doc.name as doctor_name FROM appointments a "
+                   "LEFT JOIN patients p ON a.patient_id = p.id "
+                   "LEFT JOIN owners o ON p.owner_id = o.id "
+                   "LEFT JOIN diagnoses d ON d.appointment_id = a.id "
+                   "LEFT JOIN doctors doc ON a.doctor_id = doc.id "
+                   "WHERE a.id = ?", (appointment_id,))
+    if not apt:
+        messagebox.showerror("Invoice", "Appointment not found.")
+        return
+    row = apt[0]
+    invoice_data = {
+        'appointment_id': appointment_id,
+        'generated_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'patient_name': row.get('patient_name') if isinstance(row, dict) or 'patient_name' in row else row[3],
+        'owner_name': row.get('owner_name') if isinstance(row, dict) or 'owner_name' in row else row[4],
+        'diagnosis_text': row.get('diagnosis_text') if isinstance(row, dict) or 'diagnosis_text' in row else row[5],
+        'doctor_name': row.get('doctor_name') if isinstance(row, dict) or 'doctor_name' in row else row[6],
+        'date': row.get('date') if isinstance(row, dict) or 'date' in row else row[1],
+        'time': row.get('time') if isinstance(row, dict) or 'time' in row else row[2],
+        'service_total': row.get('service_total', 0.0) if isinstance(row, dict) else 0.0
+    }
+
+    text = build_invoice_text(invoice_data)
+
+    # show in a simple CTk window - replace/fit into your existing preview UI
+    preview = ctk.CTkToplevel()
+    preview.title("Invoice Preview")
+    txt = ctk.CTkTextbox(preview, width=800, height=600)
+    txt.pack(fill="both", expand=True, padx=10, pady=10)
+    txt.insert("0.0", text)
+    txt.configure(state="disabled")
