@@ -1,0 +1,53 @@
+======================================================================
+                    VET CLINIC MANAGEMENT SYSTEM
+                      MEDICAL CERTIFICATE
+======================================================================
+Certificate Date: 2025-12-01 11:09:36
+----------------------------------------------------------------------
+
+PATIENT INFORMATION:
+  Pet Name:     Jack
+  Species:      Dog
+  Breed:        Golden Retriever
+  Age:          4
+
+OWNER INFORMATION:
+  Owner Name:   WInston
+  Contact:      09876543212
+
+----------------------------------------------------------------------
+ATTENDING VETERINARIAN:
+  Name:           Dr. James Villaluna
+  Specialization: Dermatology
+
+----------------------------------------------------------------------
+APPOINTMENT DETAILS:
+  Date:    2025-11-25
+  Time:    10:00 AM
+
+----------------------------------------------------------------------
+DIAGNOSIS:
+  Skin Infection
+
+----------------------------------------------------------------------
+PRESCRIBED MEDICATIONS:
+  1. Itraconazole
+     Quantity: 1 | Unit Price: P120.00 | Subtotal: P120.00
+  2. Cephalexin
+     Quantity: 1 | Unit Price: P20.00 | Subtotal: P20.00
+
+  MEDICATION TOTAL: P140.00
+
+======================================================================
+
+This is to certify that the above-mentioned patient has been
+examined and diagnosed at our veterinary clinic.
+
+
+_______________________________
+         Dr. James Villaluna
+     Licensed Veterinarian
+
+======================================================================
+This is a computer-generated medical certificate.
+======================================================================

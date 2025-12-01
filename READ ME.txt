@@ -1,0 +1,221 @@
+Veterinary Clinic Management System
+
+A comprehensive desktop application for managing veterinary clinic operations, including patient records, appointment scheduling, diagnosis tracking, and invoice generation.
+
+Features
+
+Dashboard
+- Overview of clinic statistics (total patients, today's appointments, doctor count)
+- Real-time display of today's appointments
+- Quick access to all clinic information
+
+Patient Management
+- Add, edit, and delete patient records
+- Track patient information: name, species, breed, age
+- Store owner contact details
+- Add patient notes and medical history
+- Search and filter patients by name, species, or owner
+
+Appointment Scheduling
+- Interactive calendar-based appointment scheduling
+- Schedule appointments with specific doctors
+- Set appointment times from 8:00 AM to 5:00 PM
+- Track appointment status (scheduled, completed, cancelled)
+- Prevent scheduling conflicts (same doctor/patient double-booking)
+- Add notes to appointments
+- Visual calendar marking for scheduled dates
+
+Doctor View
+- Calendar view of each doctor's appointments
+- Color-coded appointment status:
+  - Green: Completed appointments
+  - Yellow: Upcoming appointments
+- View daily appointment details for selected doctor
+- Doctor specialization and fee information
+
+Diagnosis & Medication
+- Record diagnoses for completed appointments
+- Link medications to diagnoses
+- Track medication quantities and prices
+- Calculate medication totals
+- Generate medical certificates
+- Delete or update diagnoses and medications
+
+Reports
+- Generate client history reports
+- View completed appointments per client
+- Display appointment statistics
+- Track visits by pet and owner
+- Export reports to text files
+- Quick stats showing top clients by visit count
+
+Invoice Generation
+- Generate invoices for completed appointments
+- Select multiple appointments per client
+- Combine doctor fees and medication costs
+- Display itemized billing with diagnosis and medication details
+- Export invoices to text files for printing
+
+Authentication
+- Login system with username/password
+- Default credentials:
+  - Username: `admin`, Password: `vet2106`
+  - Username: `user`, Password: `password`
+
+ System Requirements
+
+- Python 3.7 or higher
+- tkinter (usually included with Python)
+- customtkinter
+- tkcalendar
+- sqlite3 (included with Python)
+
+ Installation
+
+1. Clone the repository or download all files
+2. Install required dependencies:
+   ```bash
+   pip install customtkinter tkcalendar
+   ```
+
+3. Ensure all Python files are in the same directory:
+   - `main.py`
+   - `database.py`
+   - `login.py`
+   - `dashboard.py`
+   - `patients.py`
+   - `appointments.py`
+   - `diagnosis.py`
+   - `doctor.py`
+   - `report.py`
+   - `invoice.py`
+
+ Usage
+
+ Starting the Application
+```bash
+python main.py
+```
+
+ Login
+1. Enter username and password
+2. Click "LOGIN" to proceed or "EXIT" to close
+
+ Navigation
+Use the sidebar menu to navigate between different modules:
+- **Dashboard - View clinic overview
+- **Patients - Manage patient records
+- **Appointments- chedule appointments
+- **Diagnosis** - Record diagnoses and medications
+- **Doctor View** - View appointments by doctor
+- **Reports** - Generate client history reports
+- **Invoices** - Generate and print invoices
+
+ Adding a Patient
+1. Click "Patients" in the sidebar
+2. Enter patient details in the form
+3. Click "Save" to add the patient
+4. Click "New" to clear the form for another entry
+
+### Scheduling an Appointment
+1. Click "Appointments" in the sidebar
+2. Select a date from the calendar
+3. Choose patient and doctor from dropdowns
+4. Select appointment time and status
+5. Add notes if needed
+6. Click "Save"
+
+### Recording a Diagnosis
+1. Click "Diagnosis & Medication"
+2. Search for a completed appointment
+3. Click on an appointment to select it
+4. Enter diagnosis text
+5. Add medications with prices and quantities
+6. Click "Save Diagnosis"
+7. Optionally print a medical certificate
+
+### Generating Reports
+1. Click "Reports"
+2. Search for a client by name or contact
+3. Click "Generate Report" to view completed appointments
+4. Click "Completed" to see all clients with completed visits
+5. Click "Export Report to File" to save as text
+
+### Creating Invoices
+1. Click "Invoices"
+2. Search for a client name
+3. Select completed appointments to invoice
+4. Click "Generate Invoice"
+5. Click "Save & Print" to export invoice
+
+## Database Structure
+
+The application uses SQLite with the following tables:
+
+- **patients** - Patient information and owner details
+- **doctors** - Doctor profiles, specializations, and fees
+- **appointments** - Appointment scheduling and status
+- **diagnoses** - Medical diagnoses linked to appointments
+- **medications** - Prescribed medications for diagnoses
+
+Default doctors in system:
+- Dr. Sarah Geronimo (Nutrition) - ₱3,500
+- Dr. Carlos Garcia (Grooming) - ₱2,500
+- Dr. Princess Valdez (Surgery) - ₱15,000
+- Dr. Robert Tuazon (Dentistry) - ₱5,000
+- Dr. Lisa Badlis (Ophthalmology) - ₱4,500
+- Dr. James Villaluna (Dermatology) - ₱5,000
+
+## File Information
+
+| File | Purpose |
+|------|---------|
+| `main.py` | Application entry point and main window |
+| `database.py` | Database connection and table management |
+| `login.py` | Authentication system |
+| `dashboard.py` | Clinic overview and statistics |
+| `patients.py` | Patient management module |
+| `appointments.py` | Appointment scheduling module |
+| `diagnosis.py` | Diagnosis and medication tracking |
+| `doctor.py` | Doctor-specific appointment calendar |
+| `report.py` | Report generation and client history |
+| `invoice.py` | Invoice generation and printing |
+
+## Tips & Tricks
+
+- **Search Functionality**: Use partial names or contact numbers in search fields
+- **Calendar Navigation**: Click dates to view/add appointments for that date
+- **Color Coding**: Different colored appointment cards indicate status and diagnosis availability
+- **Bulk Operations**: Select multiple appointments when generating invoices for batch billing
+- **Export Files**: All certificates, reports, and invoices save as `.txt` files in the application directory
+
+## Troubleshooting
+
+**"No such table" error**: The database will automatically create tables on first run
+
+**Calendar not showing dates**: Ensure the mindate is set to today or earlier in appointments
+
+**Appointments not saving**: Verify that patient and doctor are selected before saving
+
+**Login failed**: Check default credentials or verify database permissions
+
+## Future Enhancement Ideas
+
+- Email invoice delivery
+- SMS appointment reminders
+- Advanced reporting with charts
+- Prescription printing
+- Multi-user access control
+- Appointment confirmation system
+- Pet vaccination tracking
+- Backup and restore functionality
+
+## Support
+
+For issues or feature requests, refer to the code comments and documentation within each module.
+
+---
+
+**Version**: 1.0  
+**Last Updated**: December 2024  
+**Database**: SQLite 3
