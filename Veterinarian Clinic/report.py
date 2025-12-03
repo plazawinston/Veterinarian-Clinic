@@ -123,20 +123,25 @@ class ReportView:
         self.stats_text.delete('1.0', 'end')
         self.stats_text.insert("end", "CLINIC STATISTICS\n")
         self.stats_text.insert("end", "="*40 + "\n\n")
-        self.stats_text.insert("end", f"Total Clients: {s['total_clients']}\n")
-        self.stats_text.insert("end", f"Total Pets: {s['total_pets']}\n")
-        self.stats_text.insert("end", f"Total Appointments: {s['total_apts']}\n")
-        self.stats_text.insert("end", f"Completed: {s['completed_apts']}\n\n")
-        self.stats_text.insert("end", "="*40 + "\n")
+        
+        self.stats_text.insert("end", f"Total Clients:           {s['total_clients']}\n")
+        self.stats_text.insert("end", f"Total Pets:              {s['total_pets']}\n")
+        self.stats_text.insert("end", f"Total Appointments:     {s['total_apts']}\n")
+        self.stats_text.insert("end", f"Completed Appointments: {s['completed_apts']}\n")
+        
+        self.stats_text.insert("end", "\n" + "="*40 + "\n")
         self.stats_text.insert("end", "TOP CLIENTS BY VISITS\n")
         self.stats_text.insert("end", "="*40 + "\n\n")
+        
         top_clients = self.report.top_clients_by_visits()
         if top_clients:
             for idx, row in enumerate(top_clients, 1):
-                self.stats_text.insert("end", f"{idx}. {row['owner_name']} ({row['owner_contact']}) - {row['visits']} completed visit(s)\n")
+                visits = row['visits']
+                self.stats_text.insert("end", f"{idx}. {row['owner_name']:<28} {visits} visit(s)\n")
         else:
             self.stats_text.insert("end", "No completed visits recorded yet.\n")
-        self.stats_text.insert("end", "\n")
+        
+        self.stats_text.configure(state="disabled")
 
     def generate_report(self, search_query=""):
         self.report_display.delete("1.0", "end")

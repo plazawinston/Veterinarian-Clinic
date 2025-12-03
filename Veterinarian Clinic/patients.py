@@ -101,6 +101,12 @@ class PatientView:
         self.species_combo.pack(side="left", padx=5)
         self.species_combo.set("All")
 
+        ctk.CTkButton(self.search_frame, text="Search", width=80, command=lambda: self.load_patients(self.search_entry.get(), "" if self.species_combo.get() == "All" else self.species_combo.get())).pack(side="left", padx=5)
+        
+        ctk.CTkButton(self.search_frame, text="Clear", width=80, command=lambda: [self.search_entry.delete(0, "end"), self.species_combo.set("All"), self.load_patients()]).pack(side="left", padx=5)
+        
+        ctk.CTkButton(self.search_frame, text="Refresh", width=80, command=self.refresh_patients).pack(side="left", padx=5)
+
         self.patient_container = ctk.CTkScrollableFrame(self.left, fg_color="transparent")
         self.patient_container.pack(fill="both", expand=True, padx=10, pady=10)
 

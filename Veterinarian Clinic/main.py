@@ -23,13 +23,9 @@ class VetClinicApp(ctk. CTk):
 
         self.db = Database
 
-        for module in [patients, appointments, dashboard, report, invoice, doctor, diagnosis]:
+        for module in [patients, appointments, dashboard, report, invoice, doctor, diagnosis, medicine]:
             module.app = self
             module.db = self.db
-
-        # register medicine module
-        medicine.app = self
-        medicine.db = self.db
 
         self.title("VETERINARY CLINIC MANAGEMENT SYSTEM")
         self.geometry("1400x850")

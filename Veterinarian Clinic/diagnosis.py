@@ -82,16 +82,18 @@ class DiagnosisView:
     """
     def save_diagnosis_logic(self, apt, diag_text, selected_diagnosis):
         today = datetime.now().strftime('%Y-%m-%d')
-        if selected_diagnosis and selected_diagnosis.get('appointment_id') == apt['id']:
-            db.execute("""
-                UPDATE diagnoses SET diagnosis_text = ?, diagnosis_date = ?
-                WHERE id = ?
-            """, (diag_text, today, selected_diagnosis['id']))
-            return {'updated': True}
-
+        if selected_diagnosis:
+            # Convert sqlite3.Row to dict if needed
+            diag_dict = dict(selected_diagnosis) if hasattr(selected_diagnosis, 'keys') else selected_diagnosis
+            if diag_dict.get('appointment_id') == apt['id']:
+                db.execute("""
+                    UPDATE diagnoses SET diagnosis_text = ?, diagnosis_date = ?
+                    WHERE id = ?
+                """, (diag_text, today, diag_dict['id']))
+                return {'updated': True}
+        
         existing = db.query("SELECT id FROM diagnoses WHERE appointment_id = ?", (apt['id'],))
         if existing:
-            # caller will have prompted; update by appointment
             db.execute("""
                 UPDATE diagnoses SET diagnosis_text = ?, diagnosis_date = ?
                 WHERE appointment_id = ?
@@ -227,7 +229,7 @@ def show_diagnosis_view(parent):
             ctk.CTkLabel(card, text=status_text, font=("Arial", 10, "bold"),
                         text_color=status_color).grid(row=0, column=1, sticky="e", padx=10, pady=(8,2))
             
-            ctk.CTkLabel(card, text=f"Owner: {apt['owner_name']} | Dr. {apt['doctor_name']} | Fee: {fee_str}",
+            ctk.CTkLabel(card, text=f"Owner: {apt['owner_name']} | {apt['doctor_name']} | Fee: {fee_str}",
                         font=("Arial", 10), anchor="w").grid(row=1, column=0, columnspan=2,
                                                             sticky="w", padx=10, pady=(0,8))
             

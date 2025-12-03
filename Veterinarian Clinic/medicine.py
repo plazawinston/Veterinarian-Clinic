@@ -124,6 +124,7 @@ def show_medicine_view(parent):
                 price_entry.delete(0, 'end'); price_entry.insert(0, f"{float(med['price']):.2f}")
                 supplier_entry.delete(0, 'end'); supplier_entry.insert(0, med['supplier_name'] or "")
                 supplier_contact_entry.delete(0, 'end'); supplier_contact_entry.insert(0, med['supplier_contact'] or "")
+                uses_entry.delete(0, 'end'); uses_entry.insert(0, med.get('uses') or "")
 
             card.bind('<Button-1>', on_click)
             for child in card.winfo_children():
@@ -145,6 +146,10 @@ def show_medicine_view(parent):
     ctk.CTkLabel(form, text="Name:").pack(anchor='w')
     name_entry = ctk.CTkEntry(form)
     name_entry.pack(fill='x', pady=6)
+
+    ctk.CTkLabel(form, text="Uses:").pack(anchor='w')
+    uses_entry = ctk.CTkEntry(form)
+    uses_entry.pack(fill='x', pady=6)
 
     ctk.CTkLabel(form, text="Stock:").pack(anchor='w')
     stock_entry = ctk.CTkEntry(form)
