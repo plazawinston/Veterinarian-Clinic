@@ -1,8 +1,8 @@
-Veterinary Clinic Management System
+# 🏥 Veterinary Clinic Management System
 
 A comprehensive desktop application built with Python for managing veterinary clinic operations, including patient records, appointments, diagnoses, medications, and invoicing.
 
-Table of Contents
+## Table of Contents
 
 - [Features](#features)
 - [System Requirements](#system-requirements)
@@ -14,28 +14,28 @@ Table of Contents
 - [Usage Guide](#usage-guide)
 - [Troubleshooting](#troubleshooting)
 
-Features
+## Features
 
-Core Functionality
+### Core Functionality
 
--Secure Login System- Protected access with user authentication
--Interactive Dashboard - Real-time overview of clinic statistics and today's appointments
--Patient Management - Comprehensive pet and owner records with search and filtering
--Appointment Scheduling - Calendar-based scheduling with conflict detection
--Diagnosis & Treatment - Medical records with diagnosis tracking and medication prescriptions
--Medicine Inventory - Stock management with supplier information
--Doctor View - Personalized view for veterinarians with appointment calendar
--Report Generation - Client visit history and clinic statistics
--Invoice Generation- Professional invoices with service and medication breakdowns
+- ** Secure Login System** - Protected access with user authentication
+- ** Interactive Dashboard** - Real-time overview of clinic statistics and today's appointments
+- ** Patient Management** - Comprehensive pet and owner records with search and filtering
+- ** Appointment Scheduling** - Calendar-based scheduling with conflict detection
+- ** Diagnosis & Treatment** - Medical records with diagnosis tracking and medication prescriptions
+- ** Medicine Inventory** - Stock management with supplier information
+- ** Doctor View** - Personalized view for veterinarians with appointment calendar
+- ** Report Generation** - Client visit history and clinic statistics
+- ** Invoice Generation** - Professional invoices with service and medication breakdowns
 
-System Requirements
+##  System Requirements
 
-Software Requirements
+### Software Requirements
 
-- Python: 3.8 or higher
-- Operating System: Windows, macOS, or Linux
+- **Python**: 3.8 or higher
+- **Operating System**: Windows, macOS, or Linux
 
-Required Python Packages
+### Required Python Packages
 
 ```
 customtkinter
@@ -43,19 +43,19 @@ tkcalendar
 sqlite3 (included with Python)
 ```
 
-Installation
+##  Installation
 
-Step 1: Install Python
+### Step 1: Install Python
 
 Download and install Python from [python.org](https://www.python.org/downloads/)
 
-Step 2: Install Dependencies
+### Step 2: Install Dependencies
 
 ```bash
 pip install customtkinter tkcalendar
 ```
 
-Step 3: Download the Application
+### Step 3: Download the Application
 
 Clone or download all the project files to a single directory:
 
@@ -74,62 +74,65 @@ vet_clinic/
 └── invoice.py
 ```
 
-Step 4: Run the Application
+### Step 4: Run the Application
 
 ```bash
 python main.py
 ```
 
-Getting Started
+## Getting Started
 
-First Launch
+### First Launch
 
 1. Run `python main.py`
 2. The database (`vet_clinic.db`) will be created automatically
 3. Sample doctors will be pre-loaded
 4. Use default credentials to log in (see below)
 
-Default Credentials
+### Default Credentials
 
-Admin Account:
+**Admin Account:**
 - Username: `admin`
 - Password: `vet2106`
 
+**User Account:**
+- Username: `user`
+- Password: `password`
 
-Module Overview
+## Module Overview
 
-1. Dashboard (`dashboard.py`)
+### 1. Dashboard (`dashboard.py`)
 
-Purpose: Provides a quick overview of clinic operations
+**Purpose:** Provides a quick overview of clinic operations
 
-Features:
+**Features:**
 - Total patient count
 - Today's appointment count
 - Active doctor count
 - List of today's appointments with status indicators
 
-2. Patient Management (`patients.py`)
+### 2. Patient Management (`patients.py`)
 
-Purpose: Manage pet patient records and owner information
+**Purpose:** Manage pet patient records and owner information
 
-Features:
+**Features:**
 - Add, edit, and delete patient records
 - Search by patient name or owner name
 - Filter by species
 - Track patient details: name, species, breed, age, owner information, notes
 - Input validation for numeric fields
 
-Key Functions:
+**Key Functions:**
 - `show_patients_view()` - Main patient management interface
 - `Patient.save()` - Create or update patient records
 - `Patient.delete()` - Remove patient records
 - `Patient.list_all()` - Search and filter patients
 
-3. Appointment Scheduling (`appointments.py`)
+### 3. Appointment Scheduling (`appointments.py`)
 
-Purpose: Schedule and manage veterinary appointments
+**Purpose:** Schedule and manage veterinary appointments
 
-Features:
+**Features:**
 - Interactive calendar with date highlighting
 - Visual status indicators (scheduled, completed, cancelled)
 - Conflict detection (prevents double-booking)
@@ -137,22 +140,22 @@ Features:
 - Appointment notes
 - Prevents scheduling in the past
 
-Key Functions:
+**Key Functions:**
 - `Appointment.save()` - Create or update appointments
 - `Appointment.delete()` - Remove appointments
 - `Appointment.cancel()` - Cancel appointments
 - `Appointment.conflict_exists()` - Check for scheduling conflicts
 
-Appointment Status
-- Completed - Appointment finished
-- Scheduled - Upcoming appointment
-- Cancelled - Appointment cancelled
+**Appointment Status:**
+-  **Completed** - Appointment finished
+-  **Scheduled** - Upcoming appointment
+-  **Cancelled** - Appointment cancelled
 
-4. Diagnosis & Medication (`diagnosis.py`)
+### 4. Diagnosis & Medication (`diagnosis.py`)
 
-Purpose: Record diagnoses and prescribe medications
+**Purpose:** Record diagnoses and prescribe medications
 
-Features:
+**Features:**
 - Link diagnoses to completed appointments
 - Medication prescription with inventory integration
 - Automatic stock deduction
@@ -160,30 +163,30 @@ Features:
 - Medication browser for easy selection
 - Price and quantity tracking
 
-Key Functions:
+**Key Functions:**
 - `Diagnosis.save()` - Save diagnosis records
 - `Medication.save()` - Prescribe medications
 - `print_medical_certificate()` - Generate printable certificates
 
-Workflow:
+**Workflow:**
 1. Select a completed appointment
 2. Enter diagnosis
 3. Save diagnosis
 4. Add medications (automatically deducts from inventory)
 5. Generate medical certificate
 
-5. Medicine Inventory (`medicine.py`)
+### 5. Medicine Inventory (`medicine.py`)
 
-Purpose: Manage medication stock and suppliers
+**Purpose:** Manage medication stock and suppliers
 
-Features:
+**Features:**
 - Medicine registration with details (name, stock, price, form, use)
 - Supplier information tracking
 - Stock level monitoring
 - Search and filter functionality
 - Sample medicine loader
 
-Medicine Forms:
+**Medicine Forms:**
 - Tablet
 - Injection
 - Syrup
@@ -193,51 +196,51 @@ Medicine Forms:
 - Suppository
 - Other
 
-Key Functions:
+**Key Functions:**
 - `Medicine.save()` - Add or update medicine records
 - `Medicine.delete()` - Remove medicines
 - `Medicine.list_all()` - View all medicines
 
-6. Doctor View (`doctor.py`)
+### 6. Doctor View (`doctor.py`)
 
-Purpose: Personalized view for veterinarians
+**Purpose:** Personalized view for veterinarians
 
-Features:
+**Features:**
 - Select doctor from dropdown
 - Color-coded appointment calendar:
-  - Green: Completed appointments
-  - Yellow: Upcoming appointments
+  -  Green: Completed appointments
+  -  Yellow: Upcoming appointments
 - Day-by-day appointment details
 - Patient and appointment information
 
-7. Reports (`report.py`)
+### 7. Reports (`report.py`)
 
-Purpose: Generate client history and statistics
+**Purpose:** Generate client history and statistics
 
-Features:
+**Features:**
 - Client search functionality
 - Completed appointment history per pet
 - Clinic statistics dashboard
 - Top clients by visit count
 - Export reports to text files
 
-Report Types:
+**Report Types:**
 - Individual client reports
 - All clients with completed appointments
 - Clinic-wide statistics
 
-8. Invoice Generation (`invoice.py`)
+### 8. Invoice Generation (`invoice.py`)
 
-Purpose: Create professional invoices for services
+**Purpose:** Create professional invoices for services
 
-Features:
+**Features:**
 - Multi-appointment invoice generation
 - Service fee breakdown
 - Medication cost itemization
 - Grand total calculation
 - Export to printable text format
 
-Invoice Includes:
+**Invoice Includes:**
 - Client information
 - Appointment details
 - Doctor's fees
@@ -245,11 +248,11 @@ Invoice Includes:
 - Diagnosis summary
 - Total costs
 
-Database Schema
+## 🗄️ Database Schema
 
 The application uses SQLite with the following tables:
 
-Patients Table
+### Patients Table
 ```sql
 - id (PRIMARY KEY)
 - name
@@ -261,7 +264,7 @@ Patients Table
 - notes
 ```
 
-Doctors Table
+### Doctors Table
 ```sql
 - id (PRIMARY KEY)
 - name
@@ -269,7 +272,7 @@ Doctors Table
 - fee
 ```
 
-Pre-loaded Doctors:
+**Pre-loaded Doctors:**
 - Dr. Sarah Geronimo (Nutrition) - ₱3,500
 - Dr. Carlos Garcia (Grooming) - ₱2,500
 - Dr. Princess Valdez (Surgery) - ₱15,000
@@ -280,7 +283,7 @@ Pre-loaded Doctors:
 - Dr. Katrina Dela Cruz (General Veterinarian) - ₱1,500
 - Dr. Jerome Bautista (General Veterinarian) - ₱1,500
 
-Appointments Table
+### Appointments Table
 ```sql
 - id (PRIMARY KEY)
 - patient_id (FOREIGN KEY)
@@ -291,7 +294,7 @@ Appointments Table
 - notes
 ```
 
-Diagnoses Table
+### Diagnoses Table
 ```sql
 - id (PRIMARY KEY)
 - appointment_id (FOREIGN KEY)
@@ -302,7 +305,7 @@ Diagnoses Table
 - created_at
 ```
 
-Medications Table
+### Medications Table
 ```sql
 - id (PRIMARY KEY)
 - diagnosis_id (FOREIGN KEY)
@@ -311,7 +314,7 @@ Medications Table
 - price
 ```
 
-Medicines Table
+### Medicines Table
 ```sql
 - id (PRIMARY KEY)
 - name (UNIQUE)
@@ -323,67 +326,105 @@ Medicines Table
 - supplier_contact
 ```
 
-Usage Guide
+## 📖 Usage Guide
 
-Adding a New Patient
+### Adding a New Patient
 
-1. Navigate to Patients module
-2. Click New to clear the form
+1. Navigate to **Patients** module
+2. Click **New** to clear the form
 3. Enter patient details (Name and Owner Name are required)
-4. Click Save
+4. Click **Save**
 
-Scheduling an Appointment
+### Scheduling an Appointment
 
-1. Navigate to Appointments module
+1. Navigate to **Appointments** module
 2. Select a date from the calendar
 3. Choose patient and doctor from dropdowns
 4. Select time slot
 5. Add notes if needed
-6. Click Save
+6. Click **Save**
 
-Note: The system prevents double-booking and scheduling in the past.
+**Note:** The system prevents double-booking and scheduling in the past.
 
-Recording a Diagnosis
+### Recording a Diagnosis
 
-1. Navigate to Diagnosis & Medication module
+1. Navigate to **Diagnosis & Medication** module
 2. Search for completed appointments
 3. Click on an appointment card
 4. Enter diagnosis in the text area
-5. Click Save Diagnosis
+5. Click **Save Diagnosis**
 6. Select medicines from the browser
 7. Enter quantity (price auto-fills)
-8. Click Add Medication
-9. Click Print Certificate to generate medical certificate
+8. Click **Add Medication**
+9. Click **Print Certificate** to generate medical certificate
 
-Generating an Invoice
+### Generating an Invoice
 
-1. Navigate to Invoices module
+1. Navigate to **Invoices** module
 2. Search for a client by name or contact
 3. Select appointments to include (checkboxes)
-4. Click Generate Invoice
+4. Click **Generate Invoice**
 5. Review the invoice preview
-6. Click Save & Print to export
+6. Click **Save & Print** to export
 
-Managing Medicine Inventory
+### Managing Medicine Inventory
 
-1. Navigate to Medicines module
-2. Click New to add new medicine
+1. Navigate to **Medicines** module
+2. Click **New** to add new medicine
 3. Enter medicine details (name, stock, price, form, use)
 4. Add supplier information
-5. Click Save
+5. Click **Save**
 
-UI Elements
+**Tip:** Use **Load Sample Medicines** for initial setup.
 
-Color Coding
+## 🔧 Troubleshooting
 
-- Blue (#3498db) - Primary actions, headers
-- Green (#2ecc71) - Save, completed status
-- Yellow (#f39c12) - Scheduled status
-- Red (#e74c3c) - Delete, cancel actions
-- Purple (#9b59b6) - Special features
-- Orange (#e67e22) - Medications, export
+### Common Issues
 
- Status Indicators
+**Issue: Application won't start**
+- Ensure Python 3.8+ is installed
+- Install required dependencies: `pip install customtkinter tkcalendar`
+- Check that all module files are in the same directory
+
+**Issue: Login fails**
+- Verify credentials (admin/vet2106 or user/password)
+- Check caps lock is off
+
+**Issue: Database errors**
+- Delete `vet_clinic.db` file and restart (will reset data)
+- Ensure write permissions in the application directory
+
+**Issue: "No such table: diagnoses" error**
+- This should auto-fix on startup
+- If persists, delete database and restart
+
+**Issue: Appointment won't save**
+- Check for scheduling conflicts
+- Ensure date is not in the past
+- Verify patient and doctor are selected
+
+**Issue: Medication stock not updating**
+- Ensure medicine exists in inventory first
+- Check stock level before prescribing
+- Quantity must be less than or equal to available stock
+
+**Issue: Invoice not generating**
+- Ensure appointments are marked as "completed"
+- Select at least one appointment
+- Verify client has completed appointments
+
+##  UI Elements
+
+### Color Coding
+
+- **Blue (#3498db)** - Primary actions, headers
+- **Green (#2ecc71)** - Save, completed status
+- **Yellow (#f39c12)** - Scheduled status
+- **Red (#e74c3c)** - Delete, cancel actions
+- **Purple (#9b59b6)** - Special features
+- **Orange (#e67e22)** - Medications, export
+
+### Status Indicators
 
 - Completed
 - Scheduled
@@ -391,7 +432,7 @@ Color Coding
 - Has Diagnosis
 - No Diagnosis
 
-File Structure
+## 📝 File Structure
 
 ```
 vet_clinic/
@@ -412,15 +453,15 @@ vet_clinic/
 ```
 
 
-License
+## License
 
 This is a clinic management system for educational and internal use.
 
-Updates
+## Updates
 
-Current Version: 1.0
+**Current Version:** 1.0
 
-Recent Improvements:
+**Recent Improvements:**
 - Added medicine inventory management
 - Implemented diagnosis-medication integration
 - Enhanced invoice generation with medications
