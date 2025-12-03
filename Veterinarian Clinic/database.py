@@ -58,8 +58,28 @@ class Database:
                 price REAL DEFAULT 0.0,
                 FOREIGN KEY(diagnosis_id) REFERENCES diagnoses(id) ON DELETE CASCADE
             );
+            
+                CREATE TABLE IF NOT EXISTS medicines (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL,
+                    stock INTEGER DEFAULT 0,
+                    price REAL DEFAULT 0.0,
+                    form TEXT,
+                    supplier_name TEXT,
+                    supplier_contact TEXT
+                );
         ''')
-        
+
+        # If the database existed before this migration, ensure `form` column exists
+        try:
+            cols = [r[1] for r in cur.execute("PRAGMA table_info(medicines)").fetchall()]
+            if 'form' not in cols:
+                cur.execute("ALTER TABLE medicines ADD COLUMN form TEXT")
+                cls._conn.commit()
+        except Exception:
+            # If table does not exist yet or PRAGMA fails, ignore — table creation above will handle it
+            pass
+
         if not cur.execute("SELECT * FROM doctors").fetchone():
             cur.executemany(
                 "INSERT INTO doctors (name, specialization, fee) VALUES (?, ?, ?)",
@@ -73,6 +93,19 @@ class Database:
                 ]
             )
             cls._conn.commit()
+        # Ensure requested General Veterinarians are present (idempotent)
+        general_doctors = [
+            ('Dr. Miguel Santos', 'General Veterinarian', 1500.00),
+            ('Dr. Katrina Dela Cruz', 'General Veterinarian', 1500.00),
+            ('Dr. Jerome Bautista', 'General Veterinarian', 1500.00),
+        ]
+        for name, spec, fee in general_doctors:
+            if not cur.execute("SELECT id FROM doctors WHERE name = ?", (name,)).fetchone():
+                cur.execute("INSERT INTO doctors (name, specialization, fee) VALUES (?, ?, ?)", (name, spec, fee))
+            else:
+                # ensure fee is set to requested value (lower price enforcement)
+                cur.execute("UPDATE doctors SET fee = ? WHERE name = ?", (fee, name))
+        cls._conn.commit()
         cur.close()
     
     @classmethod

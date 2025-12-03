@@ -23,6 +23,80 @@ from tkinter import messagebox
 from tkcalendar import Calendar
 from datetime import datetime,date
 
+from abc import ABC, abstractmethod
+
+# --- OOP models for Appointments (encapsulation, inheritance, abstraction) ---
+class AppointmentBase(ABC):
+    def __init__(self, id=None, patient_id=None, doctor_id=None, date=None, time=None, status='scheduled', notes=None):
+        self.id = id
+        self.patient_id = patient_id
+        self.doctor_id = doctor_id
+        self.date = date
+        self.time = time
+        self.status = status
+        self.notes = notes
+
+    @abstractmethod
+    def save(self):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def delete(self):
+        raise NotImplementedError()
+
+
+class Appointment(AppointmentBase):
+    def save(self):
+        # Upsert logic: if id exists update, else insert
+        if self.id:
+            db.execute("""
+                UPDATE appointments SET patient_id=?, doctor_id=?, date=?, time=?, status=?, notes=? WHERE id=?
+            """, (self.patient_id, self.doctor_id, self.date, self.time, self.status, self.notes, self.id))
+        else:
+            db.execute("""
+                INSERT INTO appointments (id, patient_id, doctor_id, date, time, status, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (self.id, self.patient_id, self.doctor_id, self.date, self.time, self.status, self.notes))
+
+    def delete(self):
+        if not self.id:
+            raise ValueError('Appointment id required')
+        db.execute("DELETE FROM appointments WHERE id=?", (self.id,))
+
+    def cancel(self):
+        if not self.id:
+            raise ValueError('Appointment id required')
+        db.execute("UPDATE appointments SET status=? WHERE id=?", ("cancelled", self.id))
+
+    @staticmethod
+    def list_by_date(date_str):
+        return db.query("""
+            SELECT a.id, a.date, a.time, a.status, a.notes,
+                   p.id as patient_id, p.name as patient_name, p.species,
+                   d.id as doctor_id, d.name as doctor_name, d.specialization, d.fee
+            FROM appointments a
+            JOIN patients p ON a.patient_id = p.id
+            JOIN doctors d ON a.doctor_id = d.id
+            WHERE a.date = ?
+            ORDER BY a.time
+        """, (date_str,))
+
+    @staticmethod
+    def conflict_exists(doctor_id, patient_id, date_str, time_selected):
+        return db.query("""
+            SELECT * FROM appointments 
+            WHERE (doctor_id=? OR patient_id=?) 
+            AND date=? AND time=? AND status<>'cancelled'
+        """, (doctor_id, patient_id, date_str, time_selected))
+
+
+class AppointmentManager:
+    @staticmethod
+    def distinct_dates():
+        return db.query("SELECT DISTINCT date FROM appointments WHERE status<>?", ('cancelled',))
+
+# -----------------------------------------------------------------------------
+
 # Module-level variables injected by main.py
 app = None
 db = None
@@ -101,7 +175,7 @@ def show_appointments_view(parent):
         except Exception:
             pass
         # query distinct appointment dates (exclude cancelled)
-        rows = db.query("SELECT DISTINCT date FROM appointments WHERE status<>?", ('cancelled',))
+        rows = AppointmentManager.distinct_dates()
         for r in rows:
             try:
                 d = datetime.strptime(r['date'], '%Y-%m-%d').date()
@@ -165,16 +239,7 @@ def show_appointments_view(parent):
         # clear container
         for w in apt_container.winfo_children():
             w.destroy()
-        apts = db.query("""
-            SELECT a.id, a.date, a.time, a.status, a.notes,
-                   p.id as patient_id, p.name as patient_name, p.species,
-                   d.id as doctor_id, d.name as doctor_name, d.specialization, d.fee
-            FROM appointments a
-            JOIN patients p ON a.patient_id = p.id
-            JOIN doctors d ON a.doctor_id = d.id
-            WHERE a.date = ?
-            ORDER BY a.time
-        """, (date_str,))
+        apts = Appointment.list_by_date(date_str)
         # render appointment cards
         if apts:
             for i, apt in enumerate(apts, 1):
@@ -486,9 +551,8 @@ def show_appointments_view(parent):
                 except Exception:
                     did = doctor_id
 
-                db.execute("""
-                    UPDATE appointments SET patient_id=?, doctor_id=?, date=?, time=?, status=?, notes=? WHERE id=?
-                """, (pid, did, selected_date[0], time_selected, status_selected, notes, selected_apt[0]))
+                ap = Appointment(id=selected_apt[0], patient_id=pid, doctor_id=did, date=selected_date[0], time=time_selected, status=status_selected, notes=notes)
+                ap.save()
             else:
                 try:
                     pid = int(patient_id)
@@ -499,10 +563,8 @@ def show_appointments_view(parent):
                 except Exception:
                     did = doctor_id
 
-                db.execute("""
-                    INSERT INTO appointments (id, patient_id, doctor_id, date, time, status, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (apt_id, pid, did, selected_date[0], time_selected, status_selected, notes))
+                ap = Appointment(id=apt_id, patient_id=pid, doctor_id=did, date=selected_date[0], time=time_selected, status=status_selected, notes=notes)
+                ap.save()
 
             # After write, verify by re-reading the saved row and refresh the UI
             try:
@@ -549,7 +611,8 @@ def show_appointments_view(parent):
                 messagebox.showerror("Error", "Please select an appointment to cancel")
                 return
             if messagebox.askyesno("Confirm Cancellation", "Are you sure you want to cancel this appointment?"):
-                db.execute("UPDATE appointments SET status=? WHERE id=?", ("cancelled", selected_apt[0]))
+                ap = Appointment(id=selected_apt[0])
+                ap.cancel()
                 messagebox.showinfo("✅ Success", "Appointment cancelled successfully!")
                 clear_selection()
                 load_appointments(selected_date[0])
@@ -562,7 +625,8 @@ def show_appointments_view(parent):
                 messagebox.showerror("Error", "Please select an appointment to delete")
                 return
             if messagebox.askyesno("Confirm Delete", "This will permanently delete the appointment. Continue?"):
-                db.execute("DELETE FROM appointments WHERE id=?", (selected_apt[0],))
+                ap = Appointment(id=selected_apt[0])
+                ap.delete()
                 messagebox.showinfo("✅ Success", "Appointment deleted successfully!")
                 clear_selection()
                 try:

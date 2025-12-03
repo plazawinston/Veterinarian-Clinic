@@ -2,9 +2,148 @@ import customtkinter as ctk
 from tkinter import messagebox
 from datetime import datetime
 
+from abc import ABC, abstractmethod
+
 app = None
 db = None
 refs = {}
+
+
+class DiagnosisBase(ABC):
+    def __init__(self, id=None, appointment_id=None, patient_id=None, doctor_id=None, diagnosis_text=None, diagnosis_date=None):
+        self.id = id
+        self.appointment_id = appointment_id
+        self.patient_id = patient_id
+        self.doctor_id = doctor_id
+        self.diagnosis_text = diagnosis_text
+        self.diagnosis_date = diagnosis_date
+
+    @abstractmethod
+    def save(self):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def delete(self):
+        raise NotImplementedError()
+
+
+class Diagnosis(DiagnosisBase):
+    def save(self):
+        today = datetime.now().strftime('%Y-%m-%d')
+        if self.id:
+            db.execute("""
+                UPDATE diagnoses SET diagnosis_text = ?, diagnosis_date = ? WHERE id = ?
+            """, (self.diagnosis_text, today, self.id))
+        else:
+            diag_id = db.execute_returning_id("""
+                INSERT INTO diagnoses (appointment_id, patient_id, doctor_id, diagnosis_text, diagnosis_date)
+                VALUES (?, ?, ?, ?, ?)
+            """, (self.appointment_id, self.patient_id, self.doctor_id, self.diagnosis_text, today))
+            self.id = diag_id
+            self.diagnosis_date = today
+
+    def delete(self):
+        if not self.id:
+            raise ValueError('Diagnosis id required')
+        db.execute("DELETE FROM diagnoses WHERE id = ?", (self.id,))
+
+
+class Medication:
+    def __init__(self, id=None, diagnosis_id=None, medicine_name=None, quantity=1, price=0.0):
+        self.id = id
+        self.diagnosis_id = diagnosis_id
+        self.medicine_name = medicine_name
+        self.quantity = int(quantity or 1)
+        self.price = float(price or 0.0)
+
+    def save(self):
+        if self.id:
+            db.execute("UPDATE medications SET medicine_name=?, quantity=?, price=? WHERE id = ?",
+                       (self.medicine_name, self.quantity, self.price, self.id))
+        else:
+            self.id = db.execute_returning_id(
+                "INSERT INTO medications (diagnosis_id, medicine_name, quantity, price) VALUES (?, ?, ?, ?)",
+                (self.diagnosis_id, self.medicine_name, self.quantity, self.price)
+            )
+
+    def delete(self):
+        if not self.id:
+            return
+        db.execute("DELETE FROM medications WHERE id = ?", (self.id,))
+
+    @staticmethod
+    def list_for_diagnosis(diagnosis_id):
+        return db.query("SELECT * FROM medications WHERE diagnosis_id = ? ORDER BY id", (diagnosis_id,))
+
+
+class DiagnosisView:
+    """Helper class to encapsulate diagnosis-related DB operations.
+    This keeps UI code intact while providing encapsulated methods for save/add/delete logic.
+    """
+    def save_diagnosis_logic(self, apt, diag_text, selected_diagnosis):
+        today = datetime.now().strftime('%Y-%m-%d')
+        if selected_diagnosis and selected_diagnosis.get('appointment_id') == apt['id']:
+            db.execute("""
+                UPDATE diagnoses SET diagnosis_text = ?, diagnosis_date = ?
+                WHERE id = ?
+            """, (diag_text, today, selected_diagnosis['id']))
+            return {'updated': True}
+
+        existing = db.query("SELECT id FROM diagnoses WHERE appointment_id = ?", (apt['id'],))
+        if existing:
+            # caller will have prompted; update by appointment
+            db.execute("""
+                UPDATE diagnoses SET diagnosis_text = ?, diagnosis_date = ?
+                WHERE appointment_id = ?
+            """, (diag_text, today, apt['id']))
+            return {'updated': True}
+        else:
+            diag_id = db.execute_returning_id("""
+                INSERT INTO diagnoses (appointment_id, patient_id, doctor_id, diagnosis_text, diagnosis_date)
+                VALUES (?, ?, ?, ?, ?)
+            """, (apt['id'], apt['patient_id'], apt['doctor_id'], diag_text, today))
+            return {
+                'created': True,
+                'id': diag_id,
+                'appointment_id': apt['id'],
+                'patient_id': apt['patient_id'],
+                'doctor_id': apt['doctor_id'],
+                'diagnosis_text': diag_text,
+                'diagnosis_date': today
+            }
+
+    def add_medication_logic(self, diagnosis_id, med_name, price, qty):
+        # Check inventory
+        inv = db.query("SELECT * FROM medicines WHERE name = ?", (med_name,))
+        if not inv:
+            return {'ok': False, 'error': f"Medicine '{med_name}' not found in inventory. Please register it in Medicines view first."}
+        inv = inv[0]
+        available = int(inv['stock'] or 0)
+        if qty > available:
+            return {'ok': False, 'error': f"Requested quantity ({qty}) exceeds available stock ({available})."}
+        try:
+            db.execute("INSERT INTO medications (diagnosis_id, medicine_name, quantity, price) VALUES (?, ?, ?, ?)",
+                       (diagnosis_id, med_name, qty, price))
+            db.execute("UPDATE medicines SET stock = stock - ? WHERE id = ?", (qty, inv['id']))
+            return {'ok': True}
+        except Exception as e:
+            return {'ok': False, 'error': str(e)}
+
+    def delete_med_logic(self, med_id):
+        try:
+            mrow = db.query("SELECT * FROM medications WHERE id = ?", (med_id,))
+            if mrow:
+                mrow = mrow[0]
+                med_name = mrow['medicine_name']
+                qty = int(mrow['quantity'] or 0)
+                inv = db.query("SELECT * FROM medicines WHERE name = ?", (med_name,))
+                if inv:
+                    db.execute("UPDATE medicines SET stock = stock + ? WHERE name = ?", (qty, med_name))
+            db.execute("DELETE FROM medications WHERE id = ?", (med_id,))
+            return {'ok': True}
+        except Exception as e:
+            return {'ok': False, 'error': str(e)}
+
 
 def show_diagnosis_view(parent):
     for w in parent.winfo_children():
@@ -211,22 +350,26 @@ def show_diagnosis_view(parent):
     med_input_frame = ctk.CTkFrame(form_container, fg_color="transparent")
     med_input_frame.pack(fill="x", pady=5)
     
-    ctk.CTkLabel(med_input_frame, text="Medicine Name:", font=("Arial", 11)).grid(row=0, column=0,
+    ctk.CTkLabel(med_input_frame, text="Select medicine from the list below:", font=("Arial", 11)).grid(row=0, column=0,
                                                                                    sticky="w", padx=5)
-    medicine_entry = ctk.CTkEntry(med_input_frame, placeholder_text="Medicine name...", width=200)
-    medicine_entry.grid(row=0, column=1, padx=5, pady=5)
-    
-    ctk.CTkLabel(med_input_frame, text="Price (P):", font=("Arial", 11)).grid(row=1, column=0,
+    selected_med_display = [None]
+
+    # Scrollable browser for medicines (shows name and use). Clicking sets selection and autofills price.
+    med_browser_frame = ctk.CTkScrollableFrame(med_input_frame, height=160, fg_color="#fdf2e9")
+    med_browser_frame.grid(row=1, column=0, columnspan=5, pady=(8,0), sticky="we")
+
+    # price and qty placed below the browser
+    ctk.CTkLabel(med_input_frame, text="Price (₱):", font=("Arial", 11)).grid(row=2, column=0,
                                                                                sticky="w", padx=5)
     price_entry = ctk.CTkEntry(med_input_frame, placeholder_text="0.00", width=100)
-    price_entry.grid(row=1, column=1, sticky="w", padx=5, pady=5)
-    
-    ctk.CTkLabel(med_input_frame, text="Qty:", font=("Arial", 11)).grid(row=1, column=2,
+    price_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+
+    ctk.CTkLabel(med_input_frame, text="Qty:", font=("Arial", 11)).grid(row=2, column=2,
                                                                         sticky="w", padx=5)
     qty_entry = ctk.CTkEntry(med_input_frame, placeholder_text="1", width=50)
-    qty_entry.grid(row=1, column=3, sticky="w", padx=5, pady=5)
+    qty_entry.grid(row=2, column=3, sticky="w", padx=5, pady=5)
     qty_entry.insert(0, "1")
-    
+
     med_list_frame = ctk.CTkScrollableFrame(form_container, height=120, fg_color="#fdf2e9")
     med_list_frame.pack(fill="x", pady=10)
     
@@ -263,68 +406,154 @@ def show_diagnosis_view(parent):
             
             ctk.CTkLabel(med_row, text=f"{med['medicine_name']} x{qty}",
                         font=("Arial", 11), anchor="w").pack(side="left", padx=10, pady=5)
-            ctk.CTkLabel(med_row, text=f"P{subtotal:,.2f}",
+            ctk.CTkLabel(med_row, text=f"₱{subtotal:,.2f}",
                         font=("Arial", 11, "bold"), anchor="e").pack(side="right", padx=10, pady=5)
             
             def delete_med(mid=med['id']):
-                if messagebox.askyesno("Confirm", "Delete this medication?"):
-                    db.execute("DELETE FROM medications WHERE id = ?", (mid,))
-                    if selected_diagnosis[0]:
-                        load_medications(selected_diagnosis[0]['id'])
+                        if messagebox.askyesno("Confirm", "Delete this medication?"):
+                            dv = DiagnosisView()
+                            res = dv.delete_med_logic(mid)
+                            if not res.get('ok'):
+                                messagebox.showerror('Error', res.get('error', 'Failed to delete medication'))
+                            if selected_diagnosis[0]:
+                                load_medications(selected_diagnosis[0]['id'])
             
             ctk.CTkButton(med_row, text="X", width=25, height=25, fg_color="#e74c3c",
                          command=delete_med).pack(side="right", padx=5, pady=5)
         
         update_total()
     
-    total_label = ctk.CTkLabel(form_container, text="Medication Total: P0.00",
+    total_label = ctk.CTkLabel(form_container, text="Medication Total: ₱0.00",
                                font=("Arial", 14, "bold"), text_color="#e67e22")
     total_label.pack(anchor="e", pady=5)
     
     def update_total():
         total = sum(float(m.get('price', 0)) * int(m.get('quantity', 1)) for m in medications_data)
-        total_label.configure(text=f"Medication Total: P{total:,.2f}")
+        total_label.configure(text=f"Medication Total: ₱{total:,.2f}")
     
     def add_medication():
         if not selected_diagnosis[0]:
             messagebox.showerror("Error", "Please save a diagnosis first before adding medications.")
             return
-        
-        med_name = medicine_entry.get().strip()
+        # read selected medicine (from the browser selection)
+        sel = (selected_med_display[0] or "").strip()
+        # map back to real medicine name if display used
+        med_name = display_map.get(sel, sel)
         price_str = price_entry.get().strip()
         qty_str = qty_entry.get().strip()
-        
+
         if not med_name:
             messagebox.showerror("Error", "Please enter medicine name.")
             return
-        
+
         try:
             price = float(price_str) if price_str else 0.0
         except ValueError:
             messagebox.showerror("Error", "Invalid price format.")
             return
-        
+
         try:
             qty = int(qty_str) if qty_str else 1
         except ValueError:
             messagebox.showerror("Error", "Invalid quantity format.")
             return
-        
-        db.execute("""
-            INSERT INTO medications (diagnosis_id, medicine_name, quantity, price)
-            VALUES (?, ?, ?, ?)
-        """, (selected_diagnosis[0]['id'], med_name, qty, price))
-        
-        medicine_entry.delete(0, "end")
+
+        dv = DiagnosisView()
+        res = dv.add_medication_logic(selected_diagnosis[0]['id'], med_name, price, qty)
+        if not res.get('ok'):
+            messagebox.showerror('Error', res.get('error', 'Failed to add medication'))
+            return
+
+        # clear browser selection
+        selected_med_display[0] = None
+        for child in med_browser_frame.winfo_children():
+            try:
+                child.configure(fg_color="#ffffff")
+            except Exception:
+                pass
         price_entry.delete(0, "end")
         qty_entry.delete(0, "end")
         qty_entry.insert(0, "1")
-        
+
         load_medications(selected_diagnosis[0]['id'])
         messagebox.showinfo("Success", f"Medication '{med_name}' added successfully!")
     
     ctk.CTkButton(med_input_frame, text="Add Medication", command=add_medication,
-                 fg_color="#e67e22", width=120).grid(row=2, column=0, columnspan=4, pady=10)
+                 fg_color="#e67e22", width=120).grid(row=3, column=0, columnspan=4, pady=10)
+
+    # Label showing 'Use' of selected medicine
+    med_use_label = ctk.CTkLabel(med_input_frame, text="Use:", font=("Arial", 10), text_color="#7f8c8d")
+    med_use_label.grid(row=0, column=4, sticky="w", padx=8)
+
+    # Scrollable browser for medicines (shows name and use). Clicking sets the combo and autofills price.
+    med_browser_frame = ctk.CTkScrollableFrame(med_input_frame, height=160, fg_color="#fdf2e9")
+    med_browser_frame.grid(row=1, column=0, columnspan=5, pady=(8,0), sticky="we")
+
+    display_map = {}
+
+    def refresh_medicine_list():
+        # populate combo and browser; tolerate missing 'use' column
+        try:
+            meds = db.query("SELECT name, price, use FROM medicines ORDER BY name")
+        except Exception:
+            # fallback if 'use' column not present
+            meds = db.query("SELECT name, price FROM medicines ORDER BY name")
+        values = []
+        display_map.clear()
+        for m in meds:
+            try:
+                use_text = m.get('use', '') if isinstance(m, dict) else (m['use'] if 'use' in m else '')
+            except Exception:
+                use_text = ''
+            disp = f"{m['name']} — {use_text}" if use_text else m['name']
+            values.append(disp)
+            display_map[disp] = m['name']
+        # populate combo removed; browser will show values
+        # populate browser
+        for w in med_browser_frame.winfo_children():
+            w.destroy()
+        for disp in values:
+            item = ctk.CTkFrame(med_browser_frame, fg_color="#ffffff", corner_radius=6)
+            item.pack(fill="x", padx=4, pady=2)
+            lbl = ctk.CTkLabel(item, text=disp, font=("Arial", 10), anchor="w")
+            lbl.pack(side="left", padx=8, pady=6, fill="x", expand=True)
+            def on_item_click(e=None, d=disp, item_ref=item):
+                # visually mark selection
+                for child in med_browser_frame.winfo_children():
+                    try:
+                        child.configure(fg_color="#ffffff")
+                    except Exception:
+                        pass
+                try:
+                    item_ref.configure(fg_color="#e8f8f5")
+                except Exception:
+                    pass
+                selected_med_display[0] = d
+                select_med(d)
+            item.bind("<Button-1>", on_item_click)
+            lbl.bind("<Button-1>", on_item_click)
+
+        def select_med(display_value):
+            med_name = display_map.get(display_value, display_value)
+            if not med_name:
+                return
+            med = db.query("SELECT * FROM medicines WHERE name = ?", (med_name,))
+            if not med:
+                return
+            med = med[0]
+            try:
+                price_entry.delete(0, 'end')
+                price_entry.insert(0, f"{float(med['price']):.2f}")
+            except Exception:
+                pass
+            try:
+                use_text = med.get('use', '') if isinstance(med, dict) else (med['use'] if 'use' in med else '')
+            except Exception:
+                use_text = ''
+            med_use_label.configure(text=f"Use: {use_text or ''}")
+
+    # initial population
+    refresh_medicine_list()
     
     def save_diagnosis():
         if not selected_apt[0]:
@@ -339,39 +568,20 @@ def show_diagnosis_view(parent):
         apt = selected_apt[0]
         today = datetime.now().strftime('%Y-%m-%d')
         
-        if selected_diagnosis[0] and selected_diagnosis[0]['appointment_id'] == apt['id']:
-            db.execute("""
-                UPDATE diagnoses SET diagnosis_text = ?, diagnosis_date = ?
-                WHERE id = ?
-            """, (diag_text, today, selected_diagnosis[0]['id']))
+        dv = DiagnosisView()
+        res = dv.save_diagnosis_logic(apt, diag_text, selected_diagnosis[0])
+        if res.get('updated'):
             messagebox.showinfo("Success", "Diagnosis updated successfully!")
-        else:
-            existing = db.query("SELECT id FROM diagnoses WHERE appointment_id = ?", (apt['id'],))
-            if existing:
-                if messagebox.askyesno("Existing Diagnosis",
-                                       "A diagnosis already exists for this appointment. Update it?"):
-                    db.execute("""
-                        UPDATE diagnoses SET diagnosis_text = ?, diagnosis_date = ?
-                        WHERE appointment_id = ?
-                    """, (diag_text, today, apt['id']))
-                    messagebox.showinfo("Success", "Diagnosis updated successfully!")
-                else:
-                    return
-            else:
-                diag_id = db.execute_returning_id("""
-                    INSERT INTO diagnoses (appointment_id, patient_id, doctor_id, diagnosis_text, diagnosis_date)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (apt['id'], apt['patient_id'], apt['doctor_id'], diag_text, today))
-                
-                selected_diagnosis[0] = {
-                    'id': diag_id,
-                    'appointment_id': apt['id'],
-                    'patient_id': apt['patient_id'],
-                    'doctor_id': apt['doctor_id'],
-                    'diagnosis_text': diag_text,
-                    'diagnosis_date': today
-                }
-                messagebox.showinfo("Success", "Diagnosis saved successfully! You can now add medications.")
+        elif res.get('created'):
+            selected_diagnosis[0] = {
+                'id': res['id'],
+                'appointment_id': res['appointment_id'],
+                'patient_id': res['patient_id'],
+                'doctor_id': res['doctor_id'],
+                'diagnosis_text': res['diagnosis_text'],
+                'diagnosis_date': res['diagnosis_date']
+            }
+            messagebox.showinfo("Success", "Diagnosis saved successfully! You can now add medications.")
         
         load_appointments(search_entry.get())
         load_diagnosis_for_appointment(apt['id'])
@@ -480,7 +690,16 @@ def show_diagnosis_view(parent):
     
     def clear_form():
         diagnosis_text.delete("1.0", "end")
-        medicine_entry.delete(0, "end")
+        # clear selected medicine in browser
+        try:
+            selected_med_display[0] = None
+            for child in med_browser_frame.winfo_children():
+                try:
+                    child.configure(fg_color="#ffffff")
+                except Exception:
+                    pass
+        except Exception:
+            pass
         price_entry.delete(0, "end")
         qty_entry.delete(0, "end")
         qty_entry.insert(0, "1")

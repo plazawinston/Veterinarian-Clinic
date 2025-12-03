@@ -11,12 +11,13 @@ import report
 import invoice
 import doctor
 import diagnosis
+import medicine
 from login import show_login
 
 
 ctk.set_appearance_mode("light")
 
-class VetClinicApp(ctk.CTk):
+class VetClinicApp(ctk. CTk):
     def __init__(self):
         super().__init__()
 
@@ -25,6 +26,10 @@ class VetClinicApp(ctk.CTk):
         for module in [patients, appointments, dashboard, report, invoice, doctor, diagnosis]:
             module.app = self
             module.db = self.db
+
+        # register medicine module
+        medicine.app = self
+        medicine.db = self.db
 
         self.title("VETERINARY CLINIC MANAGEMENT SYSTEM")
         self.geometry("1400x850")
@@ -44,6 +49,7 @@ class VetClinicApp(ctk.CTk):
             ("Patients", patients),
             ("Appointments", appointments),
             ("Diagnosis", diagnosis),
+            ("Medicines", medicine),
             ("Doctor View", doctor),
             ("Reports", report),
             ("Invoices", invoice),
