@@ -95,10 +95,6 @@ python main.py
 - Username: `admin`
 - Password: `vet2106`
 
-**User Account:**
-- Username: `user`
-- Password: `password`
-
 ## Module Overview
 
 ### 1. Dashboard (`dashboard.py`)
@@ -374,44 +370,6 @@ The application uses SQLite with the following tables:
 3. Enter medicine details (name, stock, price, form, use)
 4. Add supplier information
 5. Click **Save**
-
-**Tip:** Use **Load Sample Medicines** for initial setup.
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-**Issue: Application won't start**
-- Ensure Python 3.8+ is installed
-- Install required dependencies: `pip install customtkinter tkcalendar`
-- Check that all module files are in the same directory
-
-**Issue: Login fails**
-- Verify credentials (admin/vet2106 or user/password)
-- Check caps lock is off
-
-**Issue: Database errors**
-- Delete `vet_clinic.db` file and restart (will reset data)
-- Ensure write permissions in the application directory
-
-**Issue: "No such table: diagnoses" error**
-- This should auto-fix on startup
-- If persists, delete database and restart
-
-**Issue: Appointment won't save**
-- Check for scheduling conflicts
-- Ensure date is not in the past
-- Verify patient and doctor are selected
-
-**Issue: Medication stock not updating**
-- Ensure medicine exists in inventory first
-- Check stock level before prescribing
-- Quantity must be less than or equal to available stock
-
-**Issue: Invoice not generating**
-- Ensure appointments are marked as "completed"
-- Select at least one appointment
-- Verify client has completed appointments
 
 ##  UI Elements
 
