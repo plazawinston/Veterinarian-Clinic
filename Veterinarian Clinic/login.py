@@ -1,3 +1,6 @@
+"""
+Login Module - Simple modal login window for the Vet Clinic app.
+"""
 import customtkinter as ctk
 
 def get_credentials():
@@ -36,7 +39,7 @@ def show_login():
     header.pack(fill="x", padx=0, pady=0)
     header.pack_propagate(False)
     
-    ctk.CTkLabel(header, text="🔐 Vet Clinic System", 
+    ctk.CTkLabel(header, text="Veterinary Clinic System", 
                 font=("Arial", 24, "bold"),
                 text_color="white").pack(pady=25)
     
@@ -82,7 +85,7 @@ def show_login():
         password = password_entry.get().strip()
         
         if not username or not password:
-            error_label.configure(text="❌ Please enter both username and password")
+            error_label.configure(text=" Please enter both username and password")
             return
         
         credentials = get_credentials()
@@ -91,7 +94,7 @@ def show_login():
             login_result[0] = True
             login_window.destroy()
         else:
-            error_label.configure(text="❌ Invalid username or password")
+            error_label.configure(text=" Invalid username or password")
             password_entry.delete(0, "end")
     
     def on_enter(event):
@@ -103,21 +106,15 @@ def show_login():
     button_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
     button_frame.pack(fill="x", pady=(15, 0))
     
-    ctk.CTkButton(button_frame, text="🔓 LOGIN",
+    ctk.CTkButton(button_frame, text="LOGIN",
                 command=login,
                 fg_color="#2ecc71",
                 hover_color="#27ae60",
                 font=("Arial", 16, "bold"),
-                height=40,
-                corner_radius=8).pack(fill="x", padx=0, pady=(5, 10))
+                height=100,
+                corner_radius=8).pack(fill="x", padx=0, pady=(0,5))
     
-    ctk.CTkButton(button_frame, text="❌ EXIT",
-                 command=login_window.destroy,
-                 fg_color="#e74c3c",
-                 hover_color="#c0392b",
-                 font=("Arial", 16, "bold"),
-                 height=40,
-                 corner_radius=8).pack(fill="x", padx=0)
+
     
     # Make window modal and wait
     login_window.grab_set()

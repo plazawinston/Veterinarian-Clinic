@@ -1,3 +1,17 @@
+"""
+Invoice Module - Build, preview, and save invoices for completed appointments.
+
+This module creates plain-text invoices containing:
+- Client and pet information
+- Appointment services (doctor fees)
+- Prescribed medications and subtotals
+- Grand total and simple formatting for printing or saving
+
+Main utilities:
+- Invoice and InvoiceView classes to generate and preview invoices in the UI
+- build_invoice_text() to format invoice content for a single appointment or combined items
+- Helpers to fetch medications and preview/save invoice files
+"""
 import customtkinter as ctk
 from tkinter import messagebox
 from datetime import datetime

@@ -1,3 +1,16 @@
+"""
+Patients Module - Manage patient records for the veterinary clinic.
+
+Provides:
+- Patient model for create/update/delete operations
+- Searchable listing of patients
+- Patient management UI via show_patients_view(parent)
+
+Notes:
+- Expects global `db` (Database) and `app` to be assigned by the main application.
+- Uses db.query / db.execute and returns sqlite3.Row / dict-like rows.
+"""
+
 import customtkinter as ctk
 from tkinter import messagebox
 from abc import ABC, abstractmethod

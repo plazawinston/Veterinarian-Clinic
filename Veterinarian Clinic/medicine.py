@@ -1,3 +1,18 @@
+"""
+Medicine Module - Inventory and supplier management for the Vet Clinic.
+
+Provides:
+- Create, update, delete medicines in clinic inventory
+- Track stock, unit price, dosage form (tablet, injection, syrup, etc.) and intended use
+- Store supplier name and contact for each medicine
+- Load sample medicines for testing/demo
+- UI: show_medicine_view(parent) to manage medicines from the app
+
+Notes:
+- Expects global `db` (Database) and `app` to be assigned by main application before use.
+- Uses sqlite row/dict results via db.query / db.execute.
+"""
+
 import customtkinter as ctk
 from tkinter import messagebox
 from abc import ABC, abstractmethod

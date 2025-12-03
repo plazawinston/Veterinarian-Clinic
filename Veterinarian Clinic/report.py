@@ -1,3 +1,12 @@
+"""
+Report Module - Client and Clinic Reports for the Vet Clinic.
+
+Provides utilities to:
+- Find clients and their pets
+- List completed appointments per patient
+- Compute simple clinic statistics (total clients, pets, appointments, completed)
+- Produce textual client history reports and export them to plain text files
+"""
 import customtkinter as ctk
 from tkinter import messagebox
 from datetime import datetime
@@ -5,9 +14,11 @@ from datetime import datetime
 app = None
 db = None
 refs = {}
+
 class Report:
     """Data/access layer for reports."""
     def find_clients(self, search_query=""):
+        # Return matching clients (owner name/contact) or empty when no query
         if not search_query:
             return []
         return db.query("""
@@ -18,6 +29,7 @@ class Report:
         """, (f"%{search_query}%", f"%{search_query}%"))
 
     def get_pets_for_client(self, owner_name, owner_contact):
+        # Return all pets for a client
         return db.query("""
             SELECT * FROM patients
             WHERE owner_name = ? AND owner_contact = ?
@@ -25,6 +37,7 @@ class Report:
         """, (owner_name, owner_contact))
 
     def get_completed_appointments_for_patient(self, patient_id):
+        # Completed appointments with doctor details for a patient
         return db.query("""
             SELECT a.*, d.name as doctor_name, d.specialization, d.fee
             FROM appointments a
@@ -34,6 +47,7 @@ class Report:
         """, (patient_id,))
 
     def find_clients_with_completed(self):
+        # List clients that have at least one completed appointment
         return db.query("""
             SELECT DISTINCT p.owner_name, p.owner_contact
             FROM patients p
@@ -43,6 +57,7 @@ class Report:
         """)
 
     def stats(self):
+        # Basic clinic statistics
         return {
             'total_clients': len(db.query("SELECT DISTINCT owner_name, owner_contact FROM patients")),
             'total_pets': len(db.query("SELECT * FROM patients")),
@@ -51,6 +66,7 @@ class Report:
         }
 
     def top_clients_by_visits(self):
+        # Top clients ranked by completed visit count
         return db.query("""
             SELECT p.owner_name, p.owner_contact, COUNT(a.id) AS visits
             FROM patients p
@@ -63,12 +79,14 @@ class Report:
 
 
 class ReportView:
+    """UI layer for generating and exporting client history reports."""
     def __init__(self, parent, report=None):
         self.parent = parent
         self.report = report or Report()
         self.build()
 
     def build(self):
+        # Build the report UI (search, display, stats, export)
         for w in self.parent.winfo_children():
             w.destroy()
 
@@ -119,6 +137,7 @@ class ReportView:
         self.generate_report()
 
     def update_stats(self):
+        # Refresh the stats pane with latest numbers
         s = self.report.stats()
         self.stats_text.delete('1.0', 'end')
         self.stats_text.insert("end", "CLINIC STATISTICS\n")
@@ -144,6 +163,7 @@ class ReportView:
         self.stats_text.configure(state="disabled")
 
     def generate_report(self, search_query=""):
+        # Build and display a textual report for the searched client (completed appointments only)
         self.report_display.delete("1.0", "end")
         if not search_query:
             self.report_display.insert("end", "Please enter a client name or contact number to search.\n\n")
@@ -190,6 +210,7 @@ class ReportView:
             self.report_display.insert("end", "="*90 + "\n\n")
 
     def export_report(self):
+        # Save current report_display content to a timestamped text file
         try:
             content = self.report_display.get("1.0", "end").strip()
             if not content:
@@ -203,6 +224,7 @@ class ReportView:
             messagebox.showerror("Error", f"Failed to export report: {e}")
 
     def show_completed_clients(self):
+        # Display a list of clients with completed appointments and their pet visit history
         self.report_display.delete("1.0", "end")
         clients = self.report.find_clients_with_completed()
         if not clients:

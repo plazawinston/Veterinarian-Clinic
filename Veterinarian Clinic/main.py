@@ -1,3 +1,20 @@
+"""
+Vet Clinic Main Application - GUI entry point.
+
+Starts the CustomTkinter-based GUI for the Veterinary Clinic Management System.
+Defines the VetClinicApp class which:
+- wires application modules (patients, appointments, dashboard, etc.) to the app and Database
+- builds the sidebar with buttons for each module view (auto-detects show_*_view functions)
+- displays the main dashboard and ensures required DB tables/initial data exist
+
+
+Requirements:
+- customtkinter installed
+- database.py in the project (provides Database and vet_clinic.db)
+
+The application first calls show_login(); if login succeeds it launches VetClinicApp.
+"""
+
 import customtkinter as ctk
 from tkinter import messagebox
 from database import Database
@@ -82,37 +99,13 @@ class VetClinicApp(ctk. CTk):
 
         dashboard.show_dashboard_view(self.content)
 
-        db = Path(__file__).with_name('vet_clinic.db')
-        conn = sqlite3.connect(str(db))
-        cur = conn.cursor()
-
-        # Ensure required tables exist to prevent "no such table: diagnoses" errors
-        cur.executescript("""
-        PRAGMA foreign_keys = ON;
-
-        CREATE TABLE IF NOT EXISTS diagnoses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            appointment_id INTEGER NOT NULL,
-            patient_id INTEGER,
-            doctor_id INTEGER,
-            diagnosis_text TEXT,
-            diagnosis_date TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS medications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            diagnosis_id INTEGER NOT NULL,
-            medicine_name TEXT,
-            quantity INTEGER DEFAULT 1,
-            price REAL DEFAULT 0.0,
-            FOREIGN KEY(diagnosis_id) REFERENCES diagnoses(id) ON DELETE CASCADE
-        );
-        """)
-
-        cur.execute("UPDATE doctors SET fee=? WHERE name=?", (15000.00, 'Dr. Princess Valdez'))
-        conn.commit()
-        conn.close()
+        # Initialize database and tables via Database class (centralized setup & migration)
+        try:
+            Database.get_connection()  # ensures tables exist and initial data is seeded
+            # Apply any small fixes/overrides here using Database helper
+            Database.execute("UPDATE doctors SET fee = ? WHERE name = ?", (15000.00, 'Dr. Princess Valdez'))
+        except Exception as e:
+            messagebox.showerror("Database Error", f"Failed to initialize database: {e}")
 
 if __name__ == "__main__":
     if show_login():
