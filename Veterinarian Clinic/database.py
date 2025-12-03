@@ -59,26 +59,34 @@ class Database:
                 FOREIGN KEY(diagnosis_id) REFERENCES diagnoses(id) ON DELETE CASCADE
             );
             
-                CREATE TABLE IF NOT EXISTS medicines (
+            CREATE TABLE IF NOT EXISTS medicines (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
                     stock INTEGER DEFAULT 0,
                     price REAL DEFAULT 0.0,
                     form TEXT,
+                    use TEXT,
                     supplier_name TEXT,
                     supplier_contact TEXT
                 );
         ''')
 
-        # If the database existed before this migration, ensure `form` column exists
+        # If the database existed before this migration, ensure `form` and `use` columns exist
         try:
+            cur.execute("PRAGMA foreign_keys=OFF")
             cols = [r[1] for r in cur.execute("PRAGMA table_info(medicines)").fetchall()]
             if 'form' not in cols:
                 cur.execute("ALTER TABLE medicines ADD COLUMN form TEXT")
-                cls._conn.commit()
-        except Exception:
+            if 'use' not in cols:
+                cur.execute("ALTER TABLE medicines ADD COLUMN use TEXT")
+            cls._conn.commit()
+            cur.execute("PRAGMA foreign_keys=ON")
+        except Exception as e:
             # If table does not exist yet or PRAGMA fails, ignore — table creation above will handle it
-            pass
+            try:
+                cur.execute("PRAGMA foreign_keys=ON")
+            except:
+                pass
 
         if not cur.execute("SELECT * FROM doctors").fetchone():
             cur.executemany(

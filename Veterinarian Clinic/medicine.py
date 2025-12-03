@@ -24,17 +24,30 @@ class MedicineBase(ABC):
 
 
 class Medicine(MedicineBase):
-    def save(self):
+    def save(self, med_id=None):
         if not self.name:
             raise ValueError('Medicine name required')
-        existing = db.query("SELECT * FROM medicines WHERE name = ?", (self.name,))
-        if existing:
-            # update (include form if provided)
-            db.execute("UPDATE medicines SET stock=?, price=?, form=?, supplier_name=?, supplier_contact=? WHERE name=?",
-                       (self.stock, self.price, getattr(self, 'form', None), self.supplier_name, self.supplier_contact, self.name))
+        
+        # If med_id is provided, update by ID (editing existing medicine)
+        if med_id is not None:
+            existing = db.query("SELECT * FROM medicines WHERE id = ?", (med_id,))
+            if existing:
+                # update by id
+                db.execute("UPDATE medicines SET name=?, stock=?, price=?, form=?, use=?, supplier_name=?, supplier_contact=? WHERE id=?",
+                           (self.name, self.stock, self.price, getattr(self, 'form', None), getattr(self, 'use', None), self.supplier_name, self.supplier_contact, med_id))
+            else:
+                raise ValueError('Medicine not found')
         else:
-            db.execute("INSERT INTO medicines (name, stock, price, form, supplier_name, supplier_contact) VALUES (?, ?, ?, ?, ?, ?)",
-                       (self.name, self.stock, self.price, getattr(self, 'form', None), self.supplier_name, self.supplier_contact))
+            # New medicine or update by name
+            existing = db.query("SELECT * FROM medicines WHERE name = ?", (self.name,))
+            if existing:
+                # update by name
+                db.execute("UPDATE medicines SET stock=?, price=?, form=?, use=?, supplier_name=?, supplier_contact=? WHERE name=?",
+                           (self.stock, self.price, getattr(self, 'form', None), getattr(self, 'use', None), self.supplier_name, self.supplier_contact, self.name))
+            else:
+                # insert new
+                db.execute("INSERT INTO medicines (name, stock, price, form, use, supplier_name, supplier_contact) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                           (self.name, self.stock, self.price, getattr(self, 'form', None), getattr(self, 'use', None), self.supplier_name, self.supplier_contact))
 
     def delete(self):
         db.execute("DELETE FROM medicines WHERE name = ?", (self.name,))
@@ -106,7 +119,8 @@ def show_medicine_view(parent):
             def on_click(e=None, mid=m['id'], card_ref=card):
                 try:
                     med = db.query("SELECT * FROM medicines WHERE id = ?", (mid,))[0]
-                except Exception:
+                except Exception as e:
+                    print(f"Error querying medicine: {e}")
                     return
                 try:
                     if selected_card[0] and selected_card[0] != card_ref:
@@ -122,9 +136,11 @@ def show_medicine_view(parent):
                 name_entry.delete(0, 'end'); name_entry.insert(0, med['name'])
                 stock_entry.delete(0, 'end'); stock_entry.insert(0, str(med['stock']))
                 price_entry.delete(0, 'end'); price_entry.insert(0, f"{float(med['price']):.2f}")
+                uses_entry.delete(0, 'end'); uses_entry.insert(0, med['use'] or "")
+                form_combo.set(med['form'] or "Tablet")
                 supplier_entry.delete(0, 'end'); supplier_entry.insert(0, med['supplier_name'] or "")
                 supplier_contact_entry.delete(0, 'end'); supplier_contact_entry.insert(0, med['supplier_contact'] or "")
-                uses_entry.delete(0, 'end'); uses_entry.insert(0, med.get('uses') or "")
+                print(f"Loaded medicine: {med['name']}, Use: {med['use']}, Supplier: {med['supplier_name']}, Contact: {med['supplier_contact']}")
 
             card.bind('<Button-1>', on_click)
             for child in card.winfo_children():
@@ -185,8 +201,8 @@ def show_medicine_view(parent):
             existing = db.query("SELECT * FROM medicines WHERE name = ?", (name,))
             if not existing:
                 try:
-                    db.execute("INSERT INTO medicines (name, stock, price, form, supplier_name, supplier_contact) VALUES (?, ?, ?, ?, ?, ?)",
-                               (name, stock, price, form_val, sname, scontact))
+                    db.execute("INSERT INTO medicines (name, stock, price, form, use, supplier_name, supplier_contact) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                               (name, stock, price, form_val, None, sname, scontact))
                     inserted += 1
                 except Exception:
                     pass
@@ -201,7 +217,7 @@ def show_medicine_view(parent):
                 selected_card[0] = None
         except Exception:
             pass
-        for e in [name_entry, stock_entry, price_entry, supplier_entry, supplier_contact_entry]:
+        for e in [name_entry, stock_entry, price_entry, uses_entry, supplier_entry, supplier_contact_entry]:
             e.delete(0, 'end')
         form_combo.set("Tablet")
 
@@ -223,17 +239,21 @@ def show_medicine_view(parent):
         supplier = supplier_entry.get().strip() or None
         supplier_contact = supplier_contact_entry.get().strip() or None
         form_val = form_combo.get() or None
+        use = uses_entry.get().strip() or None
 
         med = Medicine(name, stock, price, supplier, supplier_contact)
-        # attach form to medicine instance (simple attribute)
+        # attach form and use to medicine instance (simple attributes)
         med.form = form_val
+        med.use = use
         try:
-            med.save()
+            # Pass selected_med_id if updating an existing medicine
+            med_id_to_save = selected_med_id[0]
+            med.save(med_id_to_save)
             messagebox.showinfo('Success', f"Medicine '{name}' saved")
             clear_form()
             load_meds(search_entry.get())
         except Exception as e:
-            messagebox.showerror('Error', str(e))
+            messagebox.showerror('Error', f"Save failed: {str(e)}")
 
     def delete_med():
         if not selected_med_id[0]:
