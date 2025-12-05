@@ -37,12 +37,18 @@ class Doctor:
 
 class DoctorView:
     def __init__(self, parent):
-        # move the existing procedural UI into this initializer so the UI and behavior stay unchanged
+        # Slight scale increase for this module
+        module_scale = 4
+        def F(size, weight=None):
+            s = int(size + module_scale)
+            return ("Arial", s, weight) if weight else ("Arial", s)
+
+        # clear parent
         for w in parent.winfo_children():
             w.destroy()
 
-        ctk.CTkLabel(parent, text="Doctor View", font=("Arial", 32, "bold"),
-                    text_color="#2c3e50").pack(pady=20)
+        ctk.CTkLabel(parent, text="Doctor View", font=F(32, "bold"),
+                    text_color="#2c3e50").pack(pady=20 + module_scale)
 
         container = ctk.CTkFrame(parent, fg_color="transparent")
         container.pack(fill="both", expand=True, padx=20, pady=10)
@@ -55,7 +61,7 @@ class DoctorView:
         doctor_frame = ctk.CTkFrame(left, fg_color="transparent")
         doctor_frame.pack(fill="x", padx=15, pady=15)
 
-        ctk.CTkLabel(doctor_frame, text="Select Doctor:", font=("Arial", 14, "bold")).pack(anchor="w", pady=(0, 5))
+        ctk.CTkLabel(doctor_frame, text="Select Doctor:", font=F(14, "bold")).pack(anchor="w", pady=(0, 5))
 
         # populate doctor dropdown and include specialization (and fee) in the visible text
         try:
@@ -90,19 +96,19 @@ class DoctorView:
                 pass
 
         doctor_dd = ctk.CTkComboBox(doctor_frame, variable=doctor_var, values=doctor_options,
-                                   state="readonly", command=on_doctor_select, font=("Arial", 12))
+                                   state="readonly", command=on_doctor_select, font=F(12))
         doctor_dd.pack(fill="x", pady=(0, 10))
 
         ctk.CTkLabel(left, text="Calendar shows color-coded days.\nGreen = completed, Yellow = upcoming",
-                    font=("Arial", 11), text_color="#7f8c8d", wraplength=180, justify="left").pack(padx=15, pady=(0,10))
+                    font=F(11), text_color="#7f8c8d", wraplength=220, justify="left").pack(padx=15, pady=(0,10))
 
         # Right side - Calendar with appointment color coding and day details
         right = ctk.CTkFrame(container, fg_color="white", corner_radius=15, border_width=2, border_color="#e0e0e0")
         right.pack(side="right", fill="both", expand=True, padx=(15, 0))
 
-        cal_header = ctk.CTkFrame(right, fg_color="#3498db", corner_radius=15, height=50)
+        cal_header = ctk.CTkFrame(right, fg_color="#3498db", corner_radius=15, height=50 + module_scale)
         cal_header.pack(fill="x", padx=15, pady=15)
-        ctk.CTkLabel(cal_header, text="Appointment Calendar", font=("Arial", 14, "bold"),
+        ctk.CTkLabel(cal_header, text="Appointment Calendar", font=F(14, "bold"),
                     text_color="white").pack(pady=10)
 
         # calendar container with larger calendar + day details side-by-side
@@ -112,23 +118,23 @@ class DoctorView:
         cal_holder = ctk.CTkFrame(calendar_container, fg_color="white", corner_radius=8)
         cal_holder.pack(side="left", fill="y", padx=(0,10), pady=5)
 
-        # Larger calendar (fixed display size) for better visibility
+        # Larger calendar (scaled up)
         calendar = Calendar(cal_holder, selectmode='day', date_pattern='yyyy-mm-dd',
                            background='#3498db', foreground='white',
                            selectbackground='#e74c3c', headersbackground='#2c3e50',
                            normalbackground='white', normalforeground='#2c3e50',
                            weekendbackground='#ecf0f1', weekendforeground='#2c3e50',
-                           font=('Arial', 12), headersforeground='white', borderwidth=2,
-                           width=420, height=380)
+                           font=F(14), headersforeground='white', borderwidth=2,
+                           width=480, height=420)
         calendar.pack(padx=8, pady=8)
 
         # Right-side pane shows appointments for the selected day
         day_details = ctk.CTkFrame(calendar_container, fg_color="white", corner_radius=8, border_width=1, border_color="#e0e0e0")
         day_details.pack(side="right", fill="both", expand=True, pady=5)
 
-        ctk.CTkLabel(day_details, text="Appointments for Selected Day", font=("Arial", 13, "bold"),
+        ctk.CTkLabel(day_details, text="Appointments for Selected Day", font=F(13, "bold"),
                     text_color="#2c3e50").pack(anchor="w", padx=12, pady=(12,6))
-        day_list = ctk.CTkScrollableFrame(day_details, height=300)
+        day_list = ctk.CTkScrollableFrame(day_details, height=340 + module_scale*4)
         day_list.pack(fill="both", expand=True, padx=12, pady=(0,12))
 
         def show_day_appointments(date_str):
@@ -136,7 +142,7 @@ class DoctorView:
             for w in day_list.winfo_children():
                 w.destroy()
             if not selected_doctor[0]:
-                ctk.CTkLabel(day_list, text="Select a doctor to view appointments", font=("Arial", 11), text_color="gray").pack(pady=10)
+                ctk.CTkLabel(day_list, text="Select a doctor to view appointments", font=F(11), text_color="gray").pack(pady=10)
                 return
             try:
                 apts = db.query("""
@@ -151,7 +157,7 @@ class DoctorView:
                 apts = []
 
             if not apts:
-                ctk.CTkLabel(day_list, text="No appointments for this day", font=("Arial", 11), text_color="gray").pack(pady=10)
+                ctk.CTkLabel(day_list, text="No appointments for this day", font=F(11), text_color="gray").pack(pady=10)
                 return
 
             for apt in apts:
@@ -159,21 +165,37 @@ class DoctorView:
                 card.pack(fill="x", pady=6, padx=6)
                 time_label = apt['time'] or ""
                 status = apt['status'] or ""
-                status_color = "#27ae60" if status == "completed" else "#f39c12" if status == "scheduled" else "#95a5a6"
+
+                # Check if appointment date has passed
+                try:
+                    apt_date = datetime.strptime(apt['date'], '%Y-%m-%d').date()
+                    today = datetime.now().date()
+                    is_past = apt_date < today
+                except Exception:
+                    is_past = False
+
+                # If date is past and status is scheduled, show "Not Attended"
+                if is_past and status == "scheduled":
+                    display_status = "Not Attended"
+                    status_color = "#e74c3c"
+                else:
+                    display_status = status.capitalize()
+                    status_color = "#27ae60" if status == "completed" else "#f39c12" if status == "scheduled" else "#95a5a6"
+
                 # top line: time, pet, status
                 top = ctk.CTkFrame(card, fg_color="transparent")
                 top.pack(fill="x", padx=8, pady=(8,4))
-                ctk.CTkLabel(top, text=f"{time_label}", font=("Arial", 12, "bold"), text_color="#2c3e50").pack(side="left")
-                ctk.CTkLabel(top, text=f"{apt['pet_name']}", font=("Arial", 11), text_color="#2c3e50").pack(side="left", padx=(12,0))
-                ctk.CTkLabel(top, text=f"{status.capitalize()}", font=("Arial", 10, "bold"), text_color="white",
+                ctk.CTkLabel(top, text=f"{time_label}", font=F(13, "bold"), text_color="#2c3e50").pack(side="left")
+                ctk.CTkLabel(top, text=f"{apt['pet_name']}", font=F(12), text_color="#2c3e50").pack(side="left", padx=(12,0))
+                ctk.CTkLabel(top, text=f"{display_status}", font=F(11, "bold"), text_color="white",
                              fg_color=status_color, corner_radius=6).pack(side="right")
                 # second line: doctor & notes
                 bottom = ctk.CTkFrame(card, fg_color="transparent")
                 bottom.pack(fill="x", padx=8, pady=(0,8))
-                ctk.CTkLabel(bottom, text=f"Dr. {apt['doctor_name']} ({apt['specialization']})", font=("Arial", 10), text_color="#7f8c8d").pack(anchor="w")
+                ctk.CTkLabel(bottom, text=f"Dr. {apt['doctor_name']} ({apt['specialization']})", font=F(11), text_color="#7f8c8d").pack(anchor="w")
                 notes = apt['notes'] if 'notes' in apt.keys() else None
                 if notes:
-                    ctk.CTkLabel(bottom, text=f"Notes: {notes}", font=("Arial", 10), text_color="#7f8c8d", wraplength=360, justify="left").pack(anchor="w", pady=(4,0))
+                    ctk.CTkLabel(bottom, text=f"Notes: {notes}", font=F(11), text_color="#7f8c8d", wraplength=420 + module_scale*20, justify="left").pack(anchor="w", pady=(4,0))
 
         # refresh_calendar updates calendar tags and the day pane
         def refresh_calendar():
@@ -224,10 +246,13 @@ class DoctorView:
 
         # bind selection event so clicking a day updates the right pane
         calendar.bind("<<CalendarSelected>>", lambda e: show_day_appointments(calendar.get_date()))
-         
+
         # Initialize with first doctor and today's view
         if doctor_options:
-            selected_doctor[0] = int(doctor_options[0].split(':')[0].strip())
+            try:
+                selected_doctor[0] = int(doctor_options[0].split(':')[0].strip())
+            except Exception:
+                selected_doctor[0] = None
             refresh_calendar()
             # ensure a date is selected and day details are shown
             try:

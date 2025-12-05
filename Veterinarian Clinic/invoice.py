@@ -1,17 +1,3 @@
-"""
-Invoice Module - Build, preview, and save invoices for completed appointments.
-
-This module creates plain-text invoices containing:
-- Client and pet information
-- Appointment services (doctor fees)
-- Prescribed medications and subtotals
-- Grand total and simple formatting for printing or saving
-
-Main utilities:
-- Invoice and InvoiceView classes to generate and preview invoices in the UI
-- build_invoice_text() to format invoice content for a single appointment or combined items
-- Helpers to fetch medications and preview/save invoice files
-"""
 import customtkinter as ctk
 from tkinter import messagebox
 from datetime import datetime
@@ -57,15 +43,19 @@ class InvoiceView:
         container = ctk.CTkFrame(parent, fg_color="transparent")
         container.pack(fill="both", expand=True, padx=20)
 
-        left = ctk.CTkFrame(container, fg_color="white", corner_radius=10)
-        left.pack(side="left", fill="both", expand=True, padx=(0,10))
+        # left (search / appointments) - make slightly wider so search controls/buttons are visible
+        left = ctk.CTkFrame(container, fg_color="white", corner_radius=10, width=520)
+        left.pack(side="left", fill="y", expand=False, padx=(0,10))
+        # allow children to size the left frame vertically
+        left.pack_propagate(True)
 
         search_frame = ctk.CTkFrame(left, fg_color="transparent")
         search_frame.pack(fill="x", padx=10, pady=10)
 
         ctk.CTkLabel(search_frame, text="Client:", font=("Arial", 14, "bold")).pack(side="left", padx=5)
-        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="Search client...", width=200)
-        self.search_entry.pack(side="left", padx=5)
+        # increased entry width so buttons will sit on the same row
+        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="Search client...", width=260)
+        self.search_entry.pack(side="left", padx=5, fill="x", expand=True)
 
         self.selected_appointments = {}
 
@@ -75,7 +65,7 @@ class InvoiceView:
         ctk.CTkLabel(appointments_frame, text="Select Appointments for Invoice:",
                     font=("Arial", 14, "bold")).pack(anchor="w", pady=(0,10))
 
-        self.appointments_list = ctk.CTkScrollableFrame(appointments_frame, height=400)
+        self.appointments_list = ctk.CTkScrollableFrame(appointments_frame, height=520)
         self.appointments_list.pack(fill="both", expand=True)
 
         def load_appointments(search_query=""):
@@ -184,14 +174,16 @@ class InvoiceView:
                      command=lambda: [self.search_entry.delete(0, "end"), load_appointments()],
                      fg_color="#95a5a6", width=80).pack(side="left", padx=5)
 
-        right = ctk.CTkFrame(container, fg_color="white", corner_radius=10, width=500)
-        right.pack(side="right", fill="both", padx=(10,0))
+        # right (invoice preview) - allocate more width so preview is clearly larger
+        right = ctk.CTkFrame(container, fg_color="white", corner_radius=10, width=820)
+        right.pack(side="right", fill="both", padx=(10,0), expand=True)
         right.pack_propagate(False)
 
-        ctk.CTkLabel(right, text="Invoice Preview", font=("Arial", 20, "bold")).pack(pady=15)
+        ctk.CTkLabel(right, text="Invoice Preview", font=("Arial", 22, "bold")).pack(pady=18)
 
-        self.invoice_display = ctk.CTkTextbox(right, font=("Courier", 10))
-        self.invoice_display.pack(fill="both", expand=True, padx=10, pady=10)
+        # larger, more readable preview textbox
+        self.invoice_display = ctk.CTkTextbox(right, font=("Courier", 12))
+        self.invoice_display.pack(fill="both", expand=True, padx=12, pady=12)
 
         refs['last_invoice'] = ""
 

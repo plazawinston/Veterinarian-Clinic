@@ -1,39 +1,13 @@
-"""
-Database Module - SQLite Database Management for Veterinarian Clinic System.
-
-This module handles all database operations for the vet clinic including:
-- Patient records (name, species, breed, age, owner information)
-- Doctor information (name, specialization, consultation fees)
-- Appointment scheduling and management
-- Diagnosis records linked to appointments
-- Medication prescriptions
-- Medicine inventory and stock management
-
-Features:
-- Automatic table creation on first run
-- Foreign key constraints for data integrity
-- Auto-generated IDs for all records
-- Pre-loaded specialty doctors and general veterinarians
-- Migration support for adding new columns to existing databases
-- Connection pooling to reuse database connections
-- Row factory for easy dictionary-style access to query results
-
-Database File: vet_clinic.db (stored in same directory as this module)
-"""
 import sqlite3
 from pathlib import Path
 
 DB_FILE = Path(__file__).with_name('vet_clinic.db')
 
-
 class Database:
-    """SQLite database management class for veterinarian clinic operations."""
-    
     _conn = None
     
     @classmethod
     def get_connection(cls):
-        """Get or create database connection and initialize tables."""
         if cls._conn is None:
             cls._conn = sqlite3.connect(str(DB_FILE))
             cls._conn.row_factory = sqlite3.Row
@@ -42,7 +16,6 @@ class Database:
     
     @classmethod
     def _setup_tables(cls):
-        """Create database tables and load initial doctor data if database is new."""
         cur = cls._conn.cursor()
         cur.executescript('''
             PRAGMA foreign_keys = ON;
@@ -86,35 +59,27 @@ class Database:
                 FOREIGN KEY(diagnosis_id) REFERENCES diagnoses(id) ON DELETE CASCADE
             );
             
-            CREATE TABLE IF NOT EXISTS medicines (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE NOT NULL,
-                stock INTEGER DEFAULT 0,
-                price REAL DEFAULT 0.0,
-                form TEXT,
-                use TEXT,
-                supplier_name TEXT,
-                supplier_contact TEXT
-            );
+                CREATE TABLE IF NOT EXISTS medicines (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL,
+                    stock INTEGER DEFAULT 0,
+                    price REAL DEFAULT 0.0,
+                    form TEXT,
+                    supplier_name TEXT,
+                    supplier_contact TEXT
+                );
         ''')
 
-        # Migration: Add missing columns to medicines table if they don't exist
+        # If the database existed before this migration, ensure `form` column exists
         try:
-            cur.execute("PRAGMA foreign_keys=OFF")
             cols = [r[1] for r in cur.execute("PRAGMA table_info(medicines)").fetchall()]
             if 'form' not in cols:
                 cur.execute("ALTER TABLE medicines ADD COLUMN form TEXT")
-            if 'use' not in cols:
-                cur.execute("ALTER TABLE medicines ADD COLUMN use TEXT")
-            cls._conn.commit()
-            cur.execute("PRAGMA foreign_keys=ON")
-        except Exception as e:
-            try:
-                cur.execute("PRAGMA foreign_keys=ON")
-            except:
-                pass
+                cls._conn.commit()
+        except Exception:
+            # If table does not exist yet or PRAGMA fails, ignore — table creation above will handle it
+            pass
 
-        # Load initial specialty doctors if database is new
         if not cur.execute("SELECT * FROM doctors").fetchone():
             cur.executemany(
                 "INSERT INTO doctors (name, specialization, fee) VALUES (?, ?, ?)",
@@ -128,8 +93,7 @@ class Database:
                 ]
             )
             cls._conn.commit()
-        
-        # Ensure general veterinarians are present
+        # Ensure requested General Veterinarians are present (idempotent)
         general_doctors = [
             ('Dr. Miguel Santos', 'General Veterinarian', 1500.00),
             ('Dr. Katrina Dela Cruz', 'General Veterinarian', 1500.00),
@@ -139,24 +103,26 @@ class Database:
             if not cur.execute("SELECT id FROM doctors WHERE name = ?", (name,)).fetchone():
                 cur.execute("INSERT INTO doctors (name, specialization, fee) VALUES (?, ?, ?)", (name, spec, fee))
             else:
+                # ensure fee is set to requested value (lower price enforcement)
                 cur.execute("UPDATE doctors SET fee = ? WHERE name = ?", (fee, name))
         cls._conn.commit()
         cur.close()
     
     @classmethod
     def query(cls, sql, params=()):
-        """Execute SELECT query and return all results."""
         return cls.get_connection().execute(sql, params).fetchall()
     
     @classmethod
     def execute(cls, sql, params=()):
-        """Execute INSERT, UPDATE, or DELETE query and commit changes."""
         cls.get_connection().execute(sql, params)
         cls.get_connection().commit()
         
     @classmethod
     def execute_returning_id(cls, sql, params=()):
-        """Execute INSERT query and return the auto-generated ID of the new row."""
+        """
+        Execute an INSERT/UPDATE/DELETE and return the last inserted row id.
+        Usage: Database.execute_returning_id("INSERT INTO ...", (val1, val2))
+        """
         conn = cls.get_connection()
         cur = conn.cursor()
         cur.execute(sql, params)

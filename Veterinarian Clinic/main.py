@@ -1,20 +1,3 @@
-"""
-Vet Clinic Main Application - GUI entry point.
-
-Starts the CustomTkinter-based GUI for the Veterinary Clinic Management System.
-Defines the VetClinicApp class which:
-- wires application modules (patients, appointments, dashboard, etc.) to the app and Database
-- builds the sidebar with buttons for each module view (auto-detects show_*_view functions)
-- displays the main dashboard and ensures required DB tables/initial data exist
-
-
-Requirements:
-- customtkinter installed
-- database.py in the project (provides Database and vet_clinic.db)
-
-The application first calls show_login(); if login succeeds it launches VetClinicApp.
-"""
-
 import customtkinter as ctk
 from tkinter import messagebox
 from database import Database
@@ -38,7 +21,13 @@ class VetClinicApp(ctk. CTk):
     def __init__(self):
         super().__init__()
 
-        self.db = Database
+        # create a Database instance instead of assigning the class
+        try:
+            self.db = Database()  # preferred: if Database requires a path, use Database(str(db_path))
+        except TypeError:
+            # fallback: if Database expects a file path, instantiate with the DB file used later
+            db_path = Path(__file__).with_name('vet_clinic.db')
+            self.db = Database(str(db_path))
 
         for module in [patients, appointments, dashboard, report, invoice, doctor, diagnosis, medicine]:
             module.app = self
@@ -47,12 +36,15 @@ class VetClinicApp(ctk. CTk):
         self.title("VETERINARY CLINIC MANAGEMENT SYSTEM")
         self.geometry("1400x850")
 
-        sidebar = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color="#2c3e50")
+        # base UI size (increase this to scale UI; set slightly larger)
+        self.base_size = 21
+
+        sidebar = ctk.CTkFrame(self, width=240, corner_radius=0, fg_color="#2c3e50")
         sidebar.pack(side="left", fill="y")
         sidebar.pack_propagate(False)
 
-        ctk.CTkLabel(sidebar, text="Vet Clinic", font=("Arial", 24, "bold"), 
-                    text_color="white").pack(pady=30)
+        ctk.CTkLabel(sidebar, text="Vet Clinic", font=("Arial", self.base_size + 5, "bold"),
+                    text_color="white").pack(pady=36)
 
         self.content = ctk.CTkFrame(self, corner_radius=0, fg_color="#f0f0f0")
         self.content.pack(side="right", fill="both", expand=True)
@@ -84,8 +76,10 @@ class VetClinicApp(ctk. CTk):
                     return lambda: f(self.content)
                 cmd = make_cmd(view_func)
 
-            ctk.CTkButton(sidebar, text=text, command=cmd, font=("Arial", 16),
-                         fg_color="#3498db", height=50).pack(fill="x", padx=10, pady=5)
+            btn = ctk.CTkButton(sidebar, text=text, command=cmd,
+                                font=("Arial", self.base_size),
+                                fg_color="#3498db", height=max(44, int(self.base_size * 2.2)))
+            btn.pack(fill="x", padx=12, pady=6)
 
         def confirm_exit():
             if messagebox.askyesno("Exit", "Are you sure you want to exit the application?"):
@@ -95,17 +89,41 @@ class VetClinicApp(ctk. CTk):
         bottom_frame.pack(side="bottom", fill="x", pady=12)
         ctk.CTkButton(bottom_frame, text="Logout", command=confirm_exit,
                  fg_color="#3498db", hover_color="#2980b9",
-                 font=("Arial", 16, "bold"), height=50).pack(fill="x", padx=10)
+                 font=("Arial", self.base_size, "bold"), height=max(48, int(self.base_size * 2.4))).pack(fill="x", padx=12)
 
         dashboard.show_dashboard_view(self.content)
 
-        # Initialize database and tables via Database class (centralized setup & migration)
-        try:
-            Database.get_connection()  # ensures tables exist and initial data is seeded
-            # Apply any small fixes/overrides here using Database helper
-            Database.execute("UPDATE doctors SET fee = ? WHERE name = ?", (15000.00, 'Dr. Princess Valdez'))
-        except Exception as e:
-            messagebox.showerror("Database Error", f"Failed to initialize database: {e}")
+        db = Path(__file__).with_name('vet_clinic.db')
+        conn = sqlite3.connect(str(db))
+        cur = conn.cursor()
+
+        # Ensure required tables exist to prevent "no such table: diagnoses" errors
+        cur.executescript("""
+        PRAGMA foreign_keys = ON;
+
+        CREATE TABLE IF NOT EXISTS diagnoses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            appointment_id INTEGER NOT NULL,
+            patient_id INTEGER,
+            doctor_id INTEGER,
+            diagnosis_text TEXT,
+            diagnosis_date TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS medications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            diagnosis_id INTEGER NOT NULL,
+            medicine_name TEXT,
+            quantity INTEGER DEFAULT 1,
+            price REAL DEFAULT 0.0,
+            FOREIGN KEY(diagnosis_id) REFERENCES diagnoses(id) ON DELETE CASCADE
+        );
+        """)
+
+        cur.execute("UPDATE doctors SET fee=? WHERE name=?", (15000.00, 'Dr. Princess Valdez'))
+        conn.commit()
+        conn.close()
 
 if __name__ == "__main__":
     if show_login():

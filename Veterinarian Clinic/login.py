@@ -1,6 +1,3 @@
-"""
-Login Module - Simple modal login window for the Vet Clinic app.
-"""
 import customtkinter as ctk
 
 def get_credentials():
@@ -111,10 +108,16 @@ def show_login():
                 fg_color="#2ecc71",
                 hover_color="#27ae60",
                 font=("Arial", 16, "bold"),
-                height=100,
-                corner_radius=8).pack(fill="x", padx=0, pady=(0,5))
+                height=80,
+                corner_radius=8).pack(fill="x", padx=0, pady=(0, 5))
     
-
+    ctk.CTkButton(button_frame, text="❌ EXIT",
+                 command=login_window.destroy,
+                 fg_color="#e74c3c",
+                 hover_color="#c0392b",
+                 font=("Arial", 16, "bold"),
+                 height=40,
+                 corner_radius=8).pack(fill="x", padx=0)
     
     # Make window modal and wait
     login_window.grab_set()
