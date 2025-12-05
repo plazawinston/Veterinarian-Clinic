@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from tkinter import messagebox
+import tkinter as tk
 from database import Database
 import sqlite3
 from pathlib import Path
@@ -127,6 +128,13 @@ class VetClinicApp(ctk. CTk):
 
 if __name__ == "__main__":
     if show_login():
+        try:
+            root = getattr(tk, '_default_root', None)
+            if root and callable(getattr(root, "title", None)) and root.title() == "tk":
+                root.destroy()
+        except Exception:
+            pass
+
         app = VetClinicApp()
         app.mainloop()
     else:

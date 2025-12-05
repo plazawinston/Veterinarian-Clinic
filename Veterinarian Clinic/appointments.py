@@ -402,26 +402,20 @@ def show_appointments_view(parent):
                 except Exception:
                     return v
 
-            # normalize time into 24-hour "HH:MM" for storage and comparisons
+            # normalize time (preserve AM/PM or exact input; do not convert to 24h)
             def normalize_time(t):
                 if not t:
                     return ""
-                t = str(t).strip()
-                formats = ["%I:%M %p", "%H:%M", "%I:%M%p"]
-                for fmt in formats:
-                    try:
-                        dt = datetime.strptime(t, fmt)
-                        return dt.strftime("%H:%M")
-                    except Exception:
-                        continue
-                # fallback: try to extract digits
-                try:
-                    parts = t.replace(".", "").replace(" ", "")
-                    if len(parts) >= 4 and parts[2] == ":":
-                        return parts[:5]
-                except Exception:
-                    pass
-                return t
+                s = str(t).strip()
+                import re
+                # collapse whitespace
+                s = re.sub(r'\s+', ' ', s)
+                # ensure AM/PM is uppercase and separated by a space if present
+                s = re.sub(r'(?i)\s*(am|pm)$', lambda m: ' ' + m.group(1).upper(), s)
+                # add colon if user typed hours and minutes without one (e.g. 0800 or 800)
+                s = re.sub(r'^(?P<h>\d{1,2})(?P<m>\d{2})(?:\s*(?P<ap>(AM|PM|am|pm)))?$', 
+                           lambda m: f"{int(m.group('h')):02d}:{m.group('m')}{(' ' + m.group('ap').upper()) if m.group('ap') else ''}", s)
+                return s
 
             patient_raw = safe_get(patient_dd, patient_var)
             doctor_raw = safe_get(doctor_dd, doctor_var)
