@@ -1,3 +1,6 @@
+"""
+CLASS : 4
+"""
 import customtkinter as ctk
 from tkinter import messagebox
 from datetime import datetime
@@ -9,6 +12,18 @@ db = None
 refs = {}
 
 
+## Normalize doctor display name (avoid doubling 'Dr.' prefix)
+def format_doctor_name(name):
+    """Avoid doubling the 'Dr.' prefix when doctor name already includes it."""
+    if not name:
+        return ""
+    n = str(name).strip()
+    if n.lower().startswith("dr"):
+        return n
+    return f"Dr. {n}"
+
+
+## Abstract base for diagnosis records
 class DiagnosisBase(ABC):
     def __init__(self, id=None, appointment_id=None, patient_id=None, doctor_id=None, diagnosis_text=None, diagnosis_date=None):
         self.id = id
@@ -19,15 +34,19 @@ class DiagnosisBase(ABC):
         self.diagnosis_date = diagnosis_date
 
     @abstractmethod
+    ## Persist the diagnosis (override in concrete classes)
     def save(self):
         raise NotImplementedError()
 
     @abstractmethod
+    ## Remove the diagnosis record (override in concrete classes)
     def delete(self):
         raise NotImplementedError()
 
 
+## Concrete diagnosis model: save and delete operations
 class Diagnosis(DiagnosisBase):
+    ## Save new or update existing diagnosis row
     def save(self):
         today = datetime.now().strftime('%Y-%m-%d')
         if self.id:
@@ -42,12 +61,14 @@ class Diagnosis(DiagnosisBase):
             self.id = diag_id
             self.diagnosis_date = today
 
+    ## Delete diagnosis from database
     def delete(self):
         if not self.id:
             raise ValueError('Diagnosis id required')
         db.execute("DELETE FROM diagnoses WHERE id = ?", (self.id,))
 
 
+## Medication model for prescribed medicines
 class Medication:
     def __init__(self, id=None, diagnosis_id=None, medicine_name=None, quantity=1, price=0.0):
         self.id = id
@@ -56,6 +77,7 @@ class Medication:
         self.quantity = int(quantity or 1)
         self.price = float(price or 0.0)
 
+    ## Insert or update a medication row
     def save(self):
         if self.id:
             db.execute("UPDATE medications SET medicine_name=?, quantity=?, price=? WHERE id = ?",
@@ -66,12 +88,14 @@ class Medication:
                 (self.diagnosis_id, self.medicine_name, self.quantity, self.price)
             )
 
+    ## Remove medication row
     def delete(self):
         if not self.id:
             return
         db.execute("DELETE FROM medications WHERE id = ?", (self.id,))
 
     @staticmethod
+    ## List medications for a given diagnosis id
     def list_for_diagnosis(diagnosis_id):
         return db.query("SELECT * FROM medications WHERE diagnosis_id = ? ORDER BY id", (diagnosis_id,))
 
@@ -80,6 +104,7 @@ class DiagnosisView:
     """Helper class to encapsulate diagnosis-related DB operations.
     This keeps UI code intact while providing encapsulated methods for save/add/delete logic.
     """
+    ## Save or update diagnosis logic used by the UI
     def save_diagnosis_logic(self, apt, diag_text, selected_diagnosis):
         today = datetime.now().strftime('%Y-%m-%d')
         if selected_diagnosis:
@@ -114,6 +139,7 @@ class DiagnosisView:
                 'diagnosis_date': today
             }
 
+    ## Add medication to a diagnosis, update inventory stock
     def add_medication_logic(self, diagnosis_id, med_name, price, qty):
         # Check inventory
         inv = db.query("SELECT * FROM medicines WHERE name = ?", (med_name,))
@@ -131,6 +157,7 @@ class DiagnosisView:
         except Exception as e:
             return {'ok': False, 'error': str(e)}
 
+    ## Delete medication and restore inventory stock
     def delete_med_logic(self, med_id):
         try:
             mrow = db.query("SELECT * FROM medications WHERE id = ?", (med_id,))
@@ -148,11 +175,13 @@ class DiagnosisView:
 
 
 def show_diagnosis_view(parent):
+    ## Build and display the diagnosis UI (left: completed appts, right: entry)
     for w in parent.winfo_children():
         w.destroy()
     
     # Slight scale increase for this module
     module_scale = 4
+    ## Font helper for this module
     def F(size, weight=None):
         s = int(size + module_scale)
         return ("Arial", s, weight) if weight else ("Arial", s)
@@ -186,6 +215,7 @@ def show_diagnosis_view(parent):
     selected_apt = [None]
     selected_card = [None]
     
+    ## Load completed appointments for selection and display
     def load_appointments(search_query=""):
         for w in apt_container.winfo_children():
             w.destroy()
@@ -239,6 +269,7 @@ def show_diagnosis_view(parent):
                         font=F(11), anchor="w").grid(row=1, column=0, columnspan=2,
                                                             sticky="w", padx=10, pady=(0,8))
             
+            ## When appointment card clicked, select and load diagnosis
             def on_card_click(e=None, apt_data=apt, card_ref=card):
                 if selected_card[0] and selected_card[0] != card_ref:
                     try:
@@ -272,7 +303,7 @@ def show_diagnosis_view(parent):
     
     diag_header = ctk.CTkFrame(left, fg_color="#3498db", corner_radius=10)
     diag_header.pack(fill="x", padx=10, pady=(10,5))
-    ctk.CTkLabel(diag_header, text="Diagnosis History",
+    ctk.CTkLabel(diag_header, text="Diagnosis Summary",
                 font=F(14, "bold"), text_color="white").pack(pady=10)
     
     diag_container = ctk.CTkScrollableFrame(left, fg_color="transparent", height=220 + module_scale*4)
@@ -280,6 +311,7 @@ def show_diagnosis_view(parent):
     
     selected_diagnosis = [None]
     
+    ## Load diagnoses for a selected appointment and display summaries
     def load_diagnosis_for_appointment(apt_id):
         for w in diag_container.winfo_children():
             w.destroy()
@@ -291,7 +323,7 @@ def show_diagnosis_view(parent):
             JOIN doctors d ON diag.doctor_id = d.id
             JOIN patients p ON diag.patient_id = p.id
             WHERE diag.appointment_id = ?
-            ORDER BY diag.created_at DESC
+            ORDER BY diag.diagnosis_date DESC, diag.id DESC
         """, (apt_id,))
         
         if not diagnoses:
@@ -302,18 +334,49 @@ def show_diagnosis_view(parent):
             return
         
         for diag in diagnoses:
+            # Get medications for this diagnosis
+            meds = db.query("SELECT * FROM medications WHERE diagnosis_id = ? ORDER BY id",
+                           (diag['id'],))
+            med_count = len(meds) if meds else 0
+            
             card = ctk.CTkFrame(diag_container, fg_color="#f0f9ff", corner_radius=8,
-                               border_width=1, border_color="#3498db")
-            card.pack(fill="x", padx=5, pady=4)
+                               border_width=2, border_color="#3498db")
+            card.pack(fill="x", padx=5, pady=6)
             
-            ctk.CTkLabel(card, text=f"Date: {diag['diagnosis_date']} | Dr. {diag['doctor_name']}",
-                        font=F(12, "bold"), anchor="w").grid(row=0, column=0,
-                                                                    sticky="w", padx=10, pady=(8,2))
+            # Header with date and doctor
+            header_frame = ctk.CTkFrame(card, fg_color="#e3f2fd", corner_radius=6)
+            header_frame.pack(fill="x", padx=8, pady=(8,4))
             
-            ctk.CTkLabel(card, text=f"Diagnosis: {diag['diagnosis_text'][:200]}...",
-                        font=F(11), anchor="w", wraplength=520 + module_scale*20).grid(row=1, column=0,
-                                                                              sticky="w", padx=10, pady=(0,8))
+            ctk.CTkLabel(header_frame, text=f"Date: {diag['diagnosis_date']} | {format_doctor_name(diag['doctor_name'])}",
+                        font=F(12, "bold"), anchor="w").pack(side="left", padx=10, pady=8)
             
+            # Medication count badge
+            if med_count > 0:
+                ctk.CTkLabel(header_frame, text=f"📋 {med_count} medication(s)",
+                            font=F(11, "bold"), text_color="#e67e22").pack(side="right", padx=10, pady=8)
+            
+            # Diagnosis text
+            ctk.CTkLabel(card, text=f"Diagnosis: {diag['diagnosis_text'][:250]}{'...' if len(diag['diagnosis_text']) > 250 else ''}",
+                        font=F(11), anchor="nw", wraplength=520 + module_scale*20, justify="left").pack(fill="x", padx=10, pady=(4,8))
+            
+            # Medications for this diagnosis
+            if meds:
+                med_frame = ctk.CTkFrame(card, fg_color="#fff5eb", corner_radius=6)
+                med_frame.pack(fill="x", padx=8, pady=(0,8))
+                
+                ctk.CTkLabel(med_frame, text="Medications prescribed:", font=F(10, "bold"),
+                            text_color="#e67e22").pack(anchor="w", padx=8, pady=(6,4))
+                
+                for med in meds:
+                    price = float(med['price']) if med['price'] else 0.0
+                    qty = int(med['quantity']) if med['quantity'] else 1
+                    subtotal = price * qty
+                    
+                    ctk.CTkLabel(med_frame, 
+                                text=f"  • {med['medicine_name']} x{qty} - ₱{subtotal:,.2f}",
+                                font=F(10), anchor="w").pack(anchor="w", padx=12, pady=2)
+            
+            ## Select a diagnosis entry and populate right-hand form
             def on_diag_click(e=None, diag_data=diag, card_ref=card):
                 selected_diagnosis[0] = diag_data
                 diagnosis_text.delete("1.0", "end")
@@ -383,6 +446,7 @@ def show_diagnosis_view(parent):
     
     medications_data = []
     
+    ## Load and display medications for a given diagnosis id
     def load_medications(diagnosis_id):
         for w in med_list_frame.winfo_children():
             w.destroy()
@@ -417,6 +481,7 @@ def show_diagnosis_view(parent):
             ctk.CTkLabel(med_row, text=f"₱{subtotal:,.2f}",
                         font=F(11, "bold"), anchor="e").pack(side="right", padx=10, pady=5)
             
+            ## Remove a medication from the diagnosis (UI callback)
             def delete_med(mid=med['id']):
                         if messagebox.askyesno("Confirm", "Delete this medication?"):
                             dv = DiagnosisView()
@@ -435,10 +500,12 @@ def show_diagnosis_view(parent):
                                font=F(14, "bold"), text_color="#e67e22")
     total_label.pack(anchor="e", pady=5)
     
+    ## Recalculate medication total and update UI label
     def update_total():
         total = sum(float(m.get('price', 0)) * int(m.get('quantity', 1)) for m in medications_data)
         total_label.configure(text=f"Medication Total: ₱{total:,.2f}")
     
+    ## UI handler: add medication to selected diagnosis (validates input)
     def add_medication():
         if not selected_diagnosis[0]:
             messagebox.showerror("Error", "Please save a diagnosis first before adding medications.")
@@ -495,6 +562,7 @@ def show_diagnosis_view(parent):
 
     display_map = {}
 
+    ## Populate medicine browser list and map display names
     def refresh_medicine_list():
         # populate combo and browser; tolerate missing 'use' column
         try:
@@ -521,6 +589,7 @@ def show_diagnosis_view(parent):
             item.pack(fill="x", padx=4, pady=2)
             lbl = ctk.CTkLabel(item, text=disp, font=F(11), anchor="w")
             lbl.pack(side="left", padx=8, pady=6, fill="x", expand=True)
+            ## Select medicine from browser and highlight in UI
             def on_item_click(e=None, d=disp, item_ref=item):
                 # visually mark selection
                 for child in med_browser_frame.winfo_children():
@@ -537,6 +606,7 @@ def show_diagnosis_view(parent):
             item.bind("<Button-1>", on_item_click)
             lbl.bind("<Button-1>", on_item_click)
 
+        ## Given a display value, load medicine details into inputs
         def select_med(display_value):
             med_name = display_map.get(display_value, display_value)
             if not med_name:
@@ -559,6 +629,7 @@ def show_diagnosis_view(parent):
     # initial population
     refresh_medicine_list()
     
+    ## Save diagnosis text for selected appointment (UI action)
     def save_diagnosis():
         if not selected_apt[0]:
             messagebox.showerror("Error", "Please select an appointment first.")
@@ -590,6 +661,7 @@ def show_diagnosis_view(parent):
         load_appointments(search_entry.get())
         load_diagnosis_for_appointment(apt['id'])
     
+    ## Generate and save a plain-text medical certificate for selected diag
     def print_medical_certificate():
         if not selected_apt[0] or not selected_diagnosis[0]:
             messagebox.showerror("Error", "Please select an appointment with a diagnosis first.")
@@ -692,6 +764,7 @@ def show_diagnosis_view(parent):
     ctk.CTkButton(btn_frame, text="Print Certificate", command=print_medical_certificate,
                  fg_color="#3498db", height=44 + module_scale, font=F(13)).pack(side="left", padx=5, expand=True, fill="x")
     
+    ## Clear the diagnosis form and reset medicine selections
     def clear_form():
         diagnosis_text.delete("1.0", "end")
         # clear selected medicine in browser
@@ -719,6 +792,7 @@ def show_diagnosis_view(parent):
     
     load_appointments()
 
+## Backwards-compatible alias for showing diagnosis view
 def diagnosis(parent):
     """Compatibility alias: older code may call diagnosis(parent)."""
     return show_diagnosis_view(parent)

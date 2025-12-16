@@ -1,12 +1,17 @@
+"""
+CLASS: 3
+"""
 import customtkinter as ctk
 from tkinter import messagebox
 from abc import ABC, abstractmethod
+import namtrash
 
 app = None
 db = None
 refs = {}
 
 
+## Abstract patient record model
 class PatientBase(ABC):
     def __init__(self, id=None, name='', species='', breed='', age=0, owner_name='', owner_contact='', notes=''):
         self.id = id
@@ -19,15 +24,19 @@ class PatientBase(ABC):
         self.notes = notes
 
     @abstractmethod
+    ## Persist the patient record
     def save(self):
         raise NotImplementedError()
 
     @abstractmethod
+    ## Delete the patient record
     def delete(self):
         raise NotImplementedError()
 
 
+## Concrete patient model implementing persistence
 class Patient(PatientBase):
+    ## Insert or update a patient row
     def add_patient(self):
         if not self.name or not self.owner_name:
             raise ValueError('Name and Owner Name required')
@@ -48,18 +57,31 @@ class Patient(PatientBase):
                 (self.name, self.species, self.breed, self.age, self.owner_name, self.owner_contact, self.notes)
             )
 
+    ## Save delegator (fulfills abstract interface)
     def save(self):
-        # Implement abstract method by delegating to existing add_patient logic
         return self.add_patient()
 
+    ## Delete this patient by id
     def delete(self):
         if not self.id:
             raise ValueError('No ID to delete')
-        db.execute("DELETE FROM patients WHERE id=?", (self.id,))
+        # Fetch the current patient row so we can save it to the trash and soft-delete
+        try:
+            row = db.query("SELECT * FROM patients WHERE id=?", (self.id,))[0]
+        except Exception:
+            row = None
+        if row:
+            try:
+                namtrash.add_deleted_patient(row)
+            except Exception:
+                pass
+        # Soft-delete: mark patient as deleted so appointments keep their FK intact
+        db.execute("UPDATE patients SET is_deleted=1 WHERE id=?", (self.id,))
 
     @staticmethod
+    ## Return list of patients, optional filtering by query and species
     def list_all(query='', species=''):
-        sql = "SELECT * FROM patients"
+        sql = "SELECT * FROM patients WHERE is_deleted=0"
         params = []
         conditions = []
         if query:
@@ -69,11 +91,12 @@ class Patient(PatientBase):
             conditions.append("species = ?")
             params.append(species)
         if conditions:
-            sql += " WHERE " + " AND ".join(conditions)
+            sql += " AND " + " AND ".join(conditions)
         sql += " ORDER BY name"
         return db.query(sql, tuple(params))
 
 
+## UI view for patient management (list + detail form)
 class PatientView:
     def __init__(self, parent):
         self.parent = parent
@@ -88,6 +111,7 @@ class PatientView:
 
         # slight scale increase for this module
         self.module_scale = 5
+        ## Font helper for patients module
         def F(size, weight=None):
             s = int(size + self.module_scale)
             return ("Arial", s, weight) if weight else ("Arial", s)
@@ -171,6 +195,7 @@ class PatientView:
 
         self.load_patients()
 
+    ## Create a clickable patient card in the list
     def make_patient_card(self, p):
         card = ctk.CTkFrame(self.patient_container, fg_color="#f8f9fa", corner_radius=8, border_width=1, border_color="#e0e0e0")
         card.pack(fill="x", padx=10, pady=6)
@@ -179,6 +204,7 @@ class PatientView:
         ctk.CTkLabel(card, text=header, font=self.F(13, "bold"), anchor="w").grid(row=0, column=0, sticky="w", padx=10 + self.module_scale, pady=(8,2))
         ctk.CTkLabel(card, text=f"Owner: {p['owner_name']} | {p['owner_contact']}", font=self.F(11), anchor="w").grid(row=1, column=0, sticky="w", padx=10 + self.module_scale, pady=(0,8))
 
+        ## Click handler: load patient details into form
         def on_card_click(e=None, pid=p['id'], card_ref=card):
             try:
                 patient = db.query("SELECT * FROM patients WHERE id=?", (pid,))[0]
@@ -211,6 +237,7 @@ class PatientView:
 
         return card
 
+    ## Load patients matching optional query and species filter
     def load_patients(self, query="", species=""):
         for w in self.patient_container.winfo_children():
             w.destroy()
@@ -218,11 +245,13 @@ class PatientView:
         for p in patients:
             self.make_patient_card(p)
 
+    ## Refresh species list and reload patients
     def refresh_patients(self):
         new_species_list = ["All"] + [row['species'] for row in db.query("SELECT DISTINCT species FROM patients ORDER BY species")]
         self.species_combo.configure(values=new_species_list)
         self.load_patients(self.search_entry.get(), "" if self.species_combo.get() == "All" else self.species_combo.get())
 
+    ## Clear detail form and reset selection
     def clear_form(self):
         self.selected_id[0] = None
         try:
@@ -239,6 +268,7 @@ class PatientView:
         self.selected_label.configure(text="Selected ID: None")
         self.delete_btn.configure(state="disabled")
 
+    ## Read form inputs and save patient to DB
     def save_patient(self):
         try:
             data = {k: (v.get() if isinstance(v, ctk.CTkEntry) else v.get("1.0", "end").strip()) for k, v in self.fields.items()}
@@ -254,6 +284,7 @@ class PatientView:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+    ## Delete the currently selected patient (UI action)
     def delete_patient(self):
         if self.selected_id[0] and messagebox.askyesno("Confirm", "Delete this patient?"):
             pat = Patient(id=self.selected_id[0])
@@ -263,6 +294,7 @@ class PatientView:
             self.load_patients()
 
 
+## Show patients management view in the parent container
 def show_patients_view(parent):
     pv = PatientView(parent)
     return pv

@@ -1,11 +1,16 @@
+"""
+CLASS: 1
+"""
 import sqlite3
 from pathlib import Path
 
 DB_FILE = Path(__file__).with_name('vet_clinic.db')
 
+## Lightweight SQLite database wrapper used across modules
 class Database:
     _conn = None
     
+    ## Obtain a singleton DB connection, initializing schema if needed
     @classmethod
     def get_connection(cls):
         if cls._conn is None:
@@ -15,6 +20,7 @@ class Database:
         return cls._conn
     
     @classmethod
+    ## Internal: create required tables and perform simple migrations
     def _setup_tables(cls):
         cur = cls._conn.cursor()
         cur.executescript('''
@@ -23,7 +29,8 @@ class Database:
             CREATE TABLE IF NOT EXISTS patients (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT, species TEXT, breed TEXT, age INTEGER,
-                owner_name TEXT, owner_contact TEXT, notes TEXT
+                owner_name TEXT, owner_contact TEXT, notes TEXT,
+                is_deleted INTEGER DEFAULT 0
             );
             
             CREATE TABLE IF NOT EXISTS doctors (
@@ -68,6 +75,19 @@ class Database:
                     supplier_name TEXT,
                     supplier_contact TEXT
                 );
+            
+                CREATE TABLE IF NOT EXISTS recent_deleted (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    patient_id INTEGER,
+                    name TEXT,
+                    species TEXT,
+                    breed TEXT,
+                    age INTEGER,
+                    owner_name TEXT,
+                    owner_contact TEXT,
+                    notes TEXT,
+                    deleted_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
         ''')
 
         # If the database existed before this migration, ensure `form` column exists
@@ -80,6 +100,16 @@ class Database:
             # If table does not exist yet or PRAGMA fails, ignore — table creation above will handle it
             pass
 
+        # Ensure patients table has is_deleted column on older DBs
+        try:
+            pcols = [r[1] for r in cur.execute("PRAGMA table_info(patients)").fetchall()]
+            if 'is_deleted' not in pcols:
+                cur.execute("ALTER TABLE patients ADD COLUMN is_deleted INTEGER DEFAULT 0")
+                cls._conn.commit()
+        except Exception:
+            pass
+
+        ## Seed default doctors if table is empty
         if not cur.execute("SELECT * FROM doctors").fetchone():
             cur.executemany(
                 "INSERT INTO doctors (name, specialization, fee) VALUES (?, ?, ?)",
@@ -109,15 +139,18 @@ class Database:
         cur.close()
     
     @classmethod
+    ## Execute a SELECT and return all rows
     def query(cls, sql, params=()):
         return cls.get_connection().execute(sql, params).fetchall()
     
     @classmethod
+    ## Execute a statement and commit (no return)
     def execute(cls, sql, params=()):
         cls.get_connection().execute(sql, params)
         cls.get_connection().commit()
         
     @classmethod
+    ## Execute a statement and return the cursor's last inserted id
     def execute_returning_id(cls, sql, params=()):
         """
         Execute an INSERT/UPDATE/DELETE and return the last inserted row id.

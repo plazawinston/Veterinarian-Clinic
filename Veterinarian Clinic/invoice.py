@@ -1,3 +1,6 @@
+"""
+CLASS: 2
+"""
 import customtkinter as ctk
 from tkinter import messagebox
 from datetime import datetime
@@ -6,8 +9,34 @@ app = None
 db = None
 refs = {}
 
+## format_doctor_name
+def format_doctor_name(name):
+    """Avoid doubling the 'Dr.' prefix when doctor name already includes it."""
+    if not name:
+        return ""
+    n = str(name).strip()
+    if n.lower().startswith("dr"):
+        return n
+    return f"Dr. {n}"
+
+## _row_get
+def _row_get(row, key, default=""):
+    """Robust accessor: supports sqlite3.Row, dict-like, or tuple rows."""
+    try:
+        # preferred mapping/index access (sqlite3.Row supports this)
+        val = row[key]
+        return val if val is not None else default
+    except Exception:
+        try:
+            # dict-like fallback
+            return row.get(key, default)
+        except Exception:
+            # final fallback
+            return default
+
 
 class Invoice:
+    ## generate_text
     def generate_text(self, invoice_display=None):
         # Build invoice_data compatible with build_invoice_text
         invoice_data = {
@@ -22,6 +51,7 @@ class Invoice:
             refs['last_invoice'] = text
         return text
 
+    ## save
     def save(self):
         # Optional: persist invoice to DB if an `invoices` table is present.
         try:
@@ -33,6 +63,7 @@ class Invoice:
 
 
 class InvoiceView:
+    ## __init__
     def __init__(self, parent):
         for w in parent.winfo_children():
             w.destroy()
@@ -68,6 +99,7 @@ class InvoiceView:
         self.appointments_list = ctk.CTkScrollableFrame(appointments_frame, height=520)
         self.appointments_list.pack(fill="both", expand=True)
 
+        ## load_appointments
         def load_appointments(search_query=""):
             for widget in self.appointments_list.winfo_children():
                 widget.destroy()
@@ -149,7 +181,8 @@ class InvoiceView:
                             font=("Arial", 12, "bold"),
                             anchor="w").pack(anchor="w")
 
-                doctor_text = f"Dr. {apt['doctor_name']} - {apt['specialization']} | Fee: {fee_str}"
+                doc_display = format_doctor_name(_row_get(apt, 'doctor_name', ''))
+                doctor_text = f"{doc_display} - {_row_get(apt, 'specialization', '')} | Fee: {fee_str}"
                 if med_total > 0:
                     doctor_text += f" | Meds: P{med_total:,.2f}"
 
@@ -159,9 +192,9 @@ class InvoiceView:
                             text_color="#666",
                             anchor="w").pack(anchor="w")
 
-                if apt['notes']:
+                if _row_get(apt, 'notes', ''):
                     ctk.CTkLabel(info_frame,
-                                text=f"Notes: {apt['notes']}",
+                                text=f"Notes: {_row_get(apt, 'notes', '')}",
                                 font=("Arial", 9),
                                 text_color="#888",
                                 anchor="w").pack(anchor="w")
@@ -187,6 +220,7 @@ class InvoiceView:
 
         refs['last_invoice'] = ""
 
+        ## generate_invoice
         def generate_invoice():
             self.invoice_display.delete("1.0", "end")
             refs['last_invoice'] = ""
@@ -249,7 +283,7 @@ class InvoiceView:
                 fee_str = f"P{fee_value:,.2f}"
 
                 lines.append(f"{idx}. Appointment: {apt['date']} at {apt['time']}")
-                lines.append(f"   Provider: Dr. {apt['doctor_name']} ({apt['specialization']})")
+                lines.append(f"   Provider: {format_doctor_name(apt.get('doctor_name') or '')} ({apt.get('specialization','')})")
                 lines.append(f"   Doctor's Fee: {fee_str}")
 
                 if apt.get('has_diagnosis') and apt.get('diagnosis_ids'):
@@ -272,8 +306,8 @@ class InvoiceView:
                                 medications_total += med_subtotal
                                 lines.append(f"     - {med['medicine_name']} x{med_qty} @ P{med_price:,.2f} = P{med_subtotal:,.2f}")
 
-                if apt['notes']:
-                    lines.append(f"   Notes: {apt['notes']}")
+                if _row_get(apt, 'notes', ''):
+                    lines.append(f"   Notes: {_row_get(apt, 'notes', '')}")
                 lines.append("")
 
             grand_total = doctor_fees_total + medications_total
@@ -295,6 +329,7 @@ class InvoiceView:
             self.invoice_display.insert("end", invoice_text)
             refs['last_invoice'] = invoice_text
 
+        ## print_invoice
         def print_invoice():
             try:
                 content = refs.get('last_invoice', "").strip()
@@ -325,9 +360,11 @@ class InvoiceView:
         generate_invoice()
 
 
+## show_invoice_view
 def show_invoice_view(parent):
     InvoiceView(parent)
 
+## _get_medications_for_appointment
 def _get_medications_for_appointment(appointment_id):
     """
     Return list of medication dicts and medication total for an appointment's diagnosis.
@@ -360,6 +397,7 @@ def _get_medications_for_appointment(appointment_id):
     return meds, med_total
 
 
+## build_invoice_text
 def build_invoice_text(invoice_data):
     """
     Build invoice text including diagnosis and prescribed medications.
@@ -410,6 +448,7 @@ def build_invoice_text(invoice_data):
     return "\n".join(lines)
 
 
+## show_invoice_preview_for_appointment
 def show_invoice_preview_for_appointment(appointment_id):
     """
     Example helper: gather data, build text, and open a simple preview window.
@@ -429,13 +468,13 @@ def show_invoice_preview_for_appointment(appointment_id):
     invoice_data = {
         'appointment_id': appointment_id,
         'generated_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'patient_name': row.get('patient_name') if isinstance(row, dict) or 'patient_name' in row else row[3],
-        'owner_name': row.get('owner_name') if isinstance(row, dict) or 'owner_name' in row else row[4],
-        'diagnosis_text': row.get('diagnosis_text') if isinstance(row, dict) or 'diagnosis_text' in row else row[5],
-        'doctor_name': row.get('doctor_name') if isinstance(row, dict) or 'doctor_name' in row else row[6],
-        'date': row.get('date') if isinstance(row, dict) or 'date' in row else row[1],
-        'time': row.get('time') if isinstance(row, dict) or 'time' in row else row[2],
-        'service_total': row.get('service_total', 0.0) if isinstance(row, dict) else 0.0
+        'patient_name': _row_get(row, 'patient_name', ''),
+        'owner_name': _row_get(row, 'owner_name', ''),
+        'diagnosis_text': _row_get(row, 'diagnosis_text', ''),
+        'doctor_name': format_doctor_name(_row_get(row, 'doctor_name', '')),
+        'date': _row_get(row, 'date', ''),
+        'time': _row_get(row, 'time', ''),
+        'service_total': float(_row_get(row, 'service_total', 0.0) or 0.0)
     }
 
     text = build_invoice_text(invoice_data)
@@ -445,5 +484,6 @@ def show_invoice_preview_for_appointment(appointment_id):
     preview.title("Invoice Preview")
     txt = ctk.CTkTextbox(preview, width=800, height=600)
     txt.pack(fill="both", expand=True, padx=10, pady=10)
+
     txt.insert("0.0", text)
     txt.configure(state="disabled")

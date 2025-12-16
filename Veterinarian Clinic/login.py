@@ -1,5 +1,6 @@
 import customtkinter as ctk
 
+## get_credentials
 def get_credentials():
     """Return hardcoded user credentials"""
     return {
@@ -7,6 +8,7 @@ def get_credentials():
         "user": "password"
     }
 
+## show_login
 def show_login():
     """Display login window and return True if login successful"""
     
@@ -77,6 +79,7 @@ def show_login():
                               text_color="#e74c3c")
     error_label.pack(anchor="w", pady=(0, 10))
     
+    ## login
     def login():
         username = username_entry.get().strip()
         password = password_entry.get().strip()
@@ -94,6 +97,7 @@ def show_login():
             error_label.configure(text=" Invalid username or password")
             password_entry.delete(0, "end")
     
+    ## on_enter
     def on_enter(event):
         login()
     
@@ -110,14 +114,6 @@ def show_login():
                 font=("Arial", 16, "bold"),
                 height=80,
                 corner_radius=8).pack(fill="x", padx=0, pady=(0, 5))
-    
-    ctk.CTkButton(button_frame, text="❌ EXIT",
-                 command=login_window.destroy,
-                 fg_color="#e74c3c",
-                 hover_color="#c0392b",
-                 font=("Arial", 16, "bold"),
-                 height=40,
-                 corner_radius=8).pack(fill="x", padx=0)
     
     # Make window modal and wait
     login_window.grab_set()

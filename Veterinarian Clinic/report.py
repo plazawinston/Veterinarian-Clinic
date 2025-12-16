@@ -1,3 +1,6 @@
+"""
+CLASS: 2
+"""
 import customtkinter as ctk
 from tkinter import messagebox
 from datetime import datetime
@@ -6,8 +9,19 @@ app = None
 db = None
 refs = {}
 
+## format_doctor_name
+def format_doctor_name(name):
+    """Avoid doubling the 'Dr.' prefix when doctor name already includes it."""
+    if not name:
+        return ""
+    n = str(name).strip()
+    if n.lower().startswith("dr"):
+        return n
+    return f"Dr. {n}"
+
 class Report:
     """Data/access layer for reports."""
+    ## find_clients
     def find_clients(self, search_query=""):
         if not search_query:
             return []
@@ -18,6 +32,7 @@ class Report:
             ORDER BY owner_name
         """, (f"%{search_query}%", f"%{search_query}%"))
 
+    ## get_pets_for_client
     def get_pets_for_client(self, owner_name, owner_contact):
         return db.query("""
             SELECT * FROM patients
@@ -25,6 +40,7 @@ class Report:
             ORDER BY name
         """, (owner_name, owner_contact))
 
+    ## get_monthly_summary
     def get_monthly_summary(self, year: int = None):
         """Return completed appointments aggregated per month with totals."""
         if year is None:
@@ -45,6 +61,7 @@ class Report:
             (str(year),)
         )
 
+    ## get_monthly_details
     def get_monthly_details(self, year: int = None, month: int = None):
         """Return all completed appointments for a given month."""
         now = datetime.now()
@@ -66,6 +83,7 @@ class Report:
             (str(year), month_str)
         )
 
+    ## get_completed_appointments_for_patient
     def get_completed_appointments_for_patient(self, patient_id):
         return db.query("""
             SELECT a.*, d.name as doctor_name, d.specialization, d.fee
@@ -75,6 +93,7 @@ class Report:
             ORDER BY a.date DESC, a.time DESC
         """, (patient_id,))
 
+    ## find_clients_with_completed
     def find_clients_with_completed(self):
         return db.query("""
             SELECT DISTINCT p.owner_name, p.owner_contact
@@ -84,14 +103,16 @@ class Report:
             ORDER BY p.owner_name
         """)
 
+    ## stats
     def stats(self):
         return {
-            'total_clients': len(db.query("SELECT DISTINCT owner_name, owner_contact FROM patients")),
-            'total_pets': len(db.query("SELECT * FROM patients")),
+            'total_clients': len(db.query("SELECT DISTINCT owner_name, owner_contact FROM patients WHERE is_deleted=0")),
+            'total_pets': len(db.query("SELECT * FROM patients WHERE is_deleted=0")),
             'total_apts': len(db.query("SELECT * FROM appointments")),
             'completed_apts': len(db.query("SELECT * FROM appointments WHERE status='completed'"))
         }
 
+    ## top_clients_by_visits
     def top_clients_by_visits(self):
         return db.query("""
             SELECT p.owner_name, p.owner_contact, COUNT(a.id) AS visits
@@ -105,6 +126,7 @@ class Report:
 
 
 class ReportView:
+    ## __init__
     def __init__(self, parent, report=None):
         self.parent = parent
         self.report = report or Report()
@@ -113,12 +135,14 @@ class ReportView:
         self.selected_month = self.now.month
         self.build()
 
+    ## build
     def build(self):
         for w in self.parent.winfo_children():
             w.destroy()
 
         # slight scale increase and shared font helper
         module_scale = 4
+        ## F
         def F(size, weight=None):
             s = int(size + module_scale)
             return ("Arial", s, weight) if weight else ("Arial", s)
@@ -180,6 +204,7 @@ class ReportView:
         self.month_combobox = ctk.CTkComboBox(selector_frame, values=months,
                                                variable=ctk.StringVar(value=months[self.selected_month - 1]),
                                                state="readonly", font=F(11), width=140 + module_scale*2)
+        self.month_combobox.set(months[self.selected_month - 1])
         self.month_combobox.pack(side="left", padx=5)
 
         button_frame = ctk.CTkFrame(picker_frame, fg_color="transparent")
@@ -210,6 +235,7 @@ class ReportView:
         self.update_stats()
         self.generate_report()
 
+    ## on_monthly_report_click
     def on_monthly_report_click(self):
         """Handle monthly report button click."""
         year = int(self.year_combobox.get())
@@ -220,6 +246,7 @@ class ReportView:
         self.selected_month = month
         self.show_monthly_report(year, month)
 
+    ## update_stats
     def update_stats(self):
         s = self.report.stats()
         self.stats_text.delete('1.0', 'end')
@@ -245,16 +272,9 @@ class ReportView:
         
         self.stats_text.configure(state="disabled")
 
+    ## generate_report
     def generate_report(self, search_query=""):
         self.report_display.delete("1.0", "end")
-        if not search_query:
-            self.report_display.insert("end", "Please enter a client name or contact number to search.\n\n")
-            self.report_display.insert("end", "The report will show only COMPLETED appointments for the client.\n")
-            self.report_display.insert("end", "Usage:\n")
-            self.report_display.insert("end", "  - Search by owner name or contact (partial match allowed)\n")
-            self.report_display.insert("end", "  - Click 'Generate Report' to list completed visits per pet\n\n")
-            return
-
         clients = self.report.find_clients(search_query)
         if not clients:
             self.report_display.insert("end", "No clients found matching your search.\n")
@@ -291,6 +311,7 @@ class ReportView:
 
             self.report_display.insert("end", "="*90 + "\n\n")
 
+    ## export_report
     def export_report(self):
         try:
             content = self.report_display.get("1.0", "end").strip()
@@ -304,6 +325,7 @@ class ReportView:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export report: {e}")
 
+    ## show_monthly_report
     def show_monthly_report(self, year: int = None, month: int = None):
         """Display monthly report in the main display area."""
         self.report_display.delete("1.0", "end")
@@ -352,6 +374,7 @@ class ReportView:
         else:
             self.report_display.insert("end", "No completed appointments for this month.\n")
 
+    ## show_completed_clients
     def show_completed_clients(self):
         self.report_display.delete("1.0", "end")
         clients = self.report.find_clients_with_completed()
@@ -391,5 +414,6 @@ class ReportView:
             self.report_display.insert("end", "="*90 + "\n\n")
 
 
+## show_report_view
 def show_report_view(parent):
     ReportView(parent)

@@ -1,4 +1,5 @@
 """
+CLASS : 3
 Medicine Module - Inventory and supplier management for the Vet Clinic.
 
 Provides:
@@ -22,12 +23,14 @@ db = None
 
 UI_SCALE = 1.12
 
+## Scaled font helper to apply module UI scaling
 def scaled_font(size, weight=None):
     sz = max(8, int(size * UI_SCALE))
     if weight:
         return ("Arial", sz, weight)
     return ("Arial", sz)
 
+## Abstract base representing a medicine record
 class MedicineBase(ABC):
     def __init__(self, name: str, stock: int = 0, price: float = 0.0, supplier_name: str = None, supplier_contact: str = None):
         self.name = name.strip() if name else ''
@@ -37,15 +40,19 @@ class MedicineBase(ABC):
         self.supplier_contact = supplier_contact
 
     @abstractmethod
+    ## Persist the medicine (insert or update)
     def save(self):
         raise NotImplementedError()
 
     @abstractmethod
+    ## Delete the medicine record
     def delete(self):
         raise NotImplementedError()
 
 
+## Concrete medicine model with DB persistence
 class Medicine(MedicineBase):
+    ## Save medicine; update if exists or insert new
     def save(self, med_id=None):
         if not self.name:
             raise ValueError('Medicine name required')
@@ -71,20 +78,25 @@ class Medicine(MedicineBase):
                 db.execute("INSERT INTO medicines (name, stock, price, form, use, supplier_name, supplier_contact) VALUES (?, ?, ?, ?, ?, ?, ?)",
                            (self.name, self.stock, self.price, getattr(self, 'form', None), getattr(self, 'use', None), self.supplier_name, self.supplier_contact))
 
+    ## Delete medicine by name
     def delete(self):
         db.execute("DELETE FROM medicines WHERE name = ?", (self.name,))
 
     @staticmethod
+    @staticmethod
+    ## Return all medicines ordered by name
     def list_all():
         return db.query("SELECT * FROM medicines ORDER BY name")
 
 
+## Simple supplier data container
 class Supplier:
     def __init__(self, name: str = None, contact: str = None):
         self.name = name
         self.contact = contact
 
 
+## Build and display the medicine management UI
 def show_medicine_view(parent):
     for w in parent.winfo_children():
         w.destroy()
@@ -115,6 +127,7 @@ def show_medicine_view(parent):
     selected_card = [None]
     selected_med_id = [None]
 
+    ## Load and render medicine cards matching optional query
     def load_meds(query=""):
         for w in med_container.winfo_children():
             w.destroy()
@@ -138,6 +151,7 @@ def show_medicine_view(parent):
             ctk.CTkLabel(card, text=f"{m['name']}", font=scaled_font(13, "bold"), anchor="w").grid(row=0, column=0, sticky="w", padx=10, pady=(8,2))
             ctk.CTkLabel(card, text=f"Stock: {m['stock']} | ₱{float(m['price']):,.2f}", font=scaled_font(11), anchor="w").grid(row=1, column=0, sticky="w", padx=10, pady=(0,8))
 
+            ## UI handler: populate form with selected medicine details
             def on_click(e=None, mid=m['id'], card_ref=card):
                 try:
                     med = db.query("SELECT * FROM medicines WHERE id = ?", (mid,))[0]
@@ -168,6 +182,7 @@ def show_medicine_view(parent):
             for child in card.winfo_children():
                 child.bind('<Button-1>', on_click)
 
+    ## Refresh the medicine list using current search entry
     def refresh():
         load_meds(search_entry.get())
 
@@ -210,6 +225,7 @@ def show_medicine_view(parent):
     supplier_contact_entry = ctk.CTkEntry(form, width=int(280 * UI_SCALE))
     supplier_contact_entry.pack(fill='x', pady=6)
 
+    ## Insert a set of sample medicines into the DB (duplicates skipped)
     def load_sample_meds():
         samples = [
             ("Amoxicillin", 50, 150.0, "Tablet", "MediSuppliers", "09171234567"),
@@ -231,6 +247,7 @@ def show_medicine_view(parent):
         messagebox.showinfo('Sample Load', f'Inserted {inserted} sample medicines (duplicates skipped).')
         load_meds()
 
+    ## Clear the right-hand form inputs and selection
     def clear_form():
         selected_med_id[0] = None
         try:
@@ -243,6 +260,7 @@ def show_medicine_view(parent):
             e.delete(0, 'end')
         form_combo.set("Tablet")
 
+    ## Read form inputs and save medicine via the `Medicine` model
     def save_med():
         name = name_entry.get().strip()
         if not name:
@@ -275,6 +293,7 @@ def show_medicine_view(parent):
         except Exception as e:
             messagebox.showerror('Error', f"Save failed: {str(e)}")
 
+    ## Delete the currently selected medicine (by id)
     def delete_med():
         if not selected_med_id[0]:
             return
@@ -296,5 +315,6 @@ def show_medicine_view(parent):
     load_meds()
 
 
+## Backwards-compatible alias for showing the medicine view
 def medicine(parent):
     return show_medicine_view(parent)

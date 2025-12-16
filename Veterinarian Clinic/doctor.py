@@ -1,4 +1,5 @@
 """
+CLASS: 2
 Doctor Module - Doctor View and Patient Management for Vet Clinic Management System.
 
 This module provides doctor-focused views with:
@@ -19,6 +20,7 @@ refs = {}
 
 
 class Doctor:
+    ## save
     def save(self):
         if not self.name:
             raise ValueError('Doctor name required')
@@ -29,6 +31,7 @@ class Doctor:
             db.execute("INSERT INTO doctors (name, specialization, fee) VALUES (?, ?, ?)",
                        (self.name, self.specialization, self.fee))
 
+    ## delete
     def delete(self):
         if not self.id:
             raise ValueError('Doctor id required')
@@ -36,9 +39,11 @@ class Doctor:
 
 
 class DoctorView:
+    ## __init__
     def __init__(self, parent):
         # Slight scale increase for this module
         module_scale = 4
+        ## F
         def F(size, weight=None):
             s = int(size + module_scale)
             return ("Arial", s, weight) if weight else ("Arial", s)
@@ -83,6 +88,7 @@ class DoctorView:
 
         selected_doctor = [None]
         doctor_var = ctk.StringVar(value=doctor_options[0] if doctor_options else "")
+        ## on_doctor_select
         def on_doctor_select(choice):
             if not choice or ':' not in choice:
                 return
@@ -98,9 +104,6 @@ class DoctorView:
         doctor_dd = ctk.CTkComboBox(doctor_frame, variable=doctor_var, values=doctor_options,
                                    state="readonly", command=on_doctor_select, font=F(12))
         doctor_dd.pack(fill="x", pady=(0, 10))
-
-        ctk.CTkLabel(left, text="Calendar shows color-coded days.\nGreen = completed, Yellow = upcoming",
-                    font=F(11), text_color="#7f8c8d", wraplength=220, justify="left").pack(padx=15, pady=(0,10))
 
         # Right side - Calendar with appointment color coding and day details
         right = ctk.CTkFrame(container, fg_color="white", corner_radius=15, border_width=2, border_color="#e0e0e0")
@@ -137,6 +140,7 @@ class DoctorView:
         day_list = ctk.CTkScrollableFrame(day_details, height=340 + module_scale*4)
         day_list.pack(fill="both", expand=True, padx=12, pady=(0,12))
 
+        ## show_day_appointments
         def show_day_appointments(date_str):
             # populate the right pane with appointments for the selected doctor and date
             for w in day_list.winfo_children():
@@ -192,12 +196,36 @@ class DoctorView:
                 # second line: doctor & notes
                 bottom = ctk.CTkFrame(card, fg_color="transparent")
                 bottom.pack(fill="x", padx=8, pady=(0,8))
-                ctk.CTkLabel(bottom, text=f"Dr. {apt['doctor_name']} ({apt['specialization']})", font=F(11), text_color="#7f8c8d").pack(anchor="w")
-                notes = apt['notes'] if 'notes' in apt.keys() else None
+
+                # robust accessor for sqlite3.Row or dict-like rows
+                ## _row_get
+                def _row_get(r, key, default=""):
+                    try:
+                        # preferred indexing (sqlite3.Row supports this)
+                        val = r[key]
+                        return val if val is not None else default
+                    except Exception:
+                        try:
+                            # fallback for dict-like objects
+                            return r.get(key, default)
+                        except Exception:
+                            return default
+
+                doc_name_raw = str(_row_get(apt, 'doctor_name', "")).strip()
+                # Avoid double "Dr." prefix if already present
+                if doc_name_raw.lower().startswith("dr"):
+                    doc_display = doc_name_raw
+                else:
+                    doc_display = f"Dr. {doc_name_raw}" if doc_name_raw else ""
+                specialization = _row_get(apt, 'specialization', "")
+                label_text = f"{doc_display} ({specialization})".strip()
+                ctk.CTkLabel(bottom, text=label_text, font=F(11), text_color="#7f8c8d").pack(anchor="w")
+                notes = _row_get(apt, 'notes', None)
                 if notes:
                     ctk.CTkLabel(bottom, text=f"Notes: {notes}", font=F(11), text_color="#7f8c8d", wraplength=420 + module_scale*20, justify="left").pack(anchor="w", pady=(4,0))
 
         # refresh_calendar updates calendar tags and the day pane
+        ## refresh_calendar
         def refresh_calendar():
             if not selected_doctor[0]:
                 # clear events and day pane when no doctor selected
@@ -262,5 +290,6 @@ class DoctorView:
                 pass
 
 
+## show_doctor_view
 def show_doctor_view(parent):
     DoctorView(parent)

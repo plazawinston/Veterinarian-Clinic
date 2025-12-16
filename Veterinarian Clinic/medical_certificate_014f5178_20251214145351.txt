@@ -1,0 +1,53 @@
+======================================================================
+                    VET CLINIC MANAGEMENT SYSTEM
+                      MEDICAL CERTIFICATE
+======================================================================
+Certificate Date: 2025-12-14 14:53:51
+----------------------------------------------------------------------
+
+PATIENT INFORMATION:
+  Pet Name:     Rocco
+  Species:      Dog
+  Breed:        French Bulldog
+  Age:          4
+
+OWNER INFORMATION:
+  Owner Name:   Carlo Jose Regala
+  Contact:      09898274652
+
+----------------------------------------------------------------------
+ATTENDING VETERINARIAN:
+  Name:           Dr. Princess Valdez
+  Specialization: Surgery
+
+----------------------------------------------------------------------
+APPOINTMENT DETAILS:
+  Date:    2025-12-01
+  Time:    01:00 PM
+
+----------------------------------------------------------------------
+DIAGNOSIS:
+  Severe neck wound
+
+----------------------------------------------------------------------
+PRESCRIBED MEDICATIONS:
+  1. Meloxicam
+     Quantity: 2 | Unit Price: P350.00 | Subtotal: P700.00
+  2. Chlorhexidine
+     Quantity: 1 | Unit Price: P200.00 | Subtotal: P200.00
+
+  MEDICATION TOTAL: P900.00
+
+======================================================================
+
+This is to certify that the above-mentioned patient has been
+examined and diagnosed at our veterinary clinic.
+
+
+_______________________________
+         Dr. Princess Valdez
+     Licensed Veterinarian
+
+======================================================================
+This is a computer-generated medical certificate.
+======================================================================

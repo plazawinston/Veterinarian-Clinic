@@ -28,6 +28,16 @@ app = None
 db = None
 refs = {}
 
+## Convert 24-hour time to 12-hour format (HH:MM -> HH:MM AM/PM)
+def format_time_12h(time_24h):
+    """Convert 24-hour HH:MM format to 12-hour format with AM/PM"""
+    try:
+        dt = datetime.strptime(time_24h, "%H:%M")
+        return dt.strftime("%I:%M %p")
+    except Exception:
+        return time_24h
+
+## Build and display the appointments UI view (calendar + form + list)
 def show_appointments_view(parent):
     """
     Display appointment scheduling interface with calendar.
@@ -36,8 +46,8 @@ def show_appointments_view(parent):
     for w in parent.winfo_children():
         w.destroy()
 
-    # Slight scale up for this module (add +5 to sizes)
     module_scale = 5
+    ## Font helper: scale fonts for this module
     def F(size, weight=None):
         # returns a font tuple with module scale applied
         s = int(size + module_scale)
@@ -78,6 +88,7 @@ def show_appointments_view(parent):
                       mindate=datetime.now().date())
     calendar.pack(pady=20, padx=25, fill="both")
 
+    ## Update calendar markers for dates with appointments
     def refresh_calendar_marks():
         # remove existing marks
         try:
@@ -101,7 +112,7 @@ def show_appointments_view(parent):
 
     apt_header = ctk.CTkFrame(left, fg_color="#34495e", corner_radius=10)
     apt_header.pack(fill="x", padx=15, pady=(15,10))
-    ctk.CTkLabel(apt_header, text="📋 Appointments for Selected Date", 
+    ctk.CTkLabel(apt_header, text=" Appointments for Selected Date", 
                 font=F(16, "bold"),
                 text_color="white").pack(pady=10)
 
@@ -113,6 +124,7 @@ def show_appointments_view(parent):
     selected_apt = [None]
     selected_card_apt = [None]
 
+    ## Load appointment details into the form for editing
     def edit_appointment(aid):
         try:
             apt = db.query("SELECT * FROM appointments WHERE id=?", (aid,))
@@ -144,6 +156,7 @@ def show_appointments_view(parent):
         except Exception:
             pass
 
+    ## Load and render appointment cards for given date
     def load_appointments(date_str):
         # clear container
         for w in apt_container.winfo_children():
@@ -169,7 +182,7 @@ def show_appointments_view(parent):
                 card = ctk.CTkFrame(apt_container, fg_color="#f8f9fa", corner_radius=8, border_width=1, border_color="#e0e0e0")
                 card.pack(fill="x", padx=10, pady=6)
 
-                header_text = f"[{i}] {apt['time']} — {apt['patient_name']} ({apt['species']})"
+                header_text = f"[{i}] {format_time_12h(apt['time'])} — {apt['patient_name']} ({apt['species']})"
                 ctk.CTkLabel(card, text=header_text, font=F(13, "bold"), anchor="w").grid(row=0, column=0, sticky="w", padx=10, pady=(8,2))
                 ctk.CTkLabel(card, text=f"Doctor: {apt['doctor_name']} ({apt['specialization']}) | Fee: {fee_str}", font=F(11), anchor="w").grid(row=1, column=0, sticky="w", padx=10)
                 status_icon = "✅" if apt['status'] == 'completed' else "🔔" if apt['status'] == 'scheduled' else "❌"
@@ -178,6 +191,7 @@ def show_appointments_view(parent):
                 if apt['notes']:
                     ctk.CTkLabel(card, text=f"Notes: {apt['notes']}", font=F(11), anchor="w", wraplength=480 + module_scale * 8).grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=(6,8))
 
+                ## Handle user clicking an appointment card (select and populate form)
                 def on_card_click(e=None, aid=apt['id'], card_ref=card):
                     try:
                         if selected_card_apt[0] and selected_card_apt[0] != card_ref:
@@ -210,10 +224,8 @@ def show_appointments_view(parent):
                             val = f"{p['id']}: {p['name']} ({p['species']}) - {p['owner_name']}"
                             try:
                                 patient_var.set(val)
-                            except Exception:
-                                pass
-                            try:
-                                patient_dd.set(val)
+                                patient_entry.delete(0, "end")
+                                patient_entry.insert(0, val)
                             except Exception:
                                 pass
                         d = db.query("SELECT * FROM doctors WHERE id=?", (a['doctor_id'],))
@@ -268,19 +280,34 @@ def show_appointments_view(parent):
         else:
             ctk.CTkLabel(apt_container, text=f"No appointments scheduled for {date_str}", font=F(12)).pack(padx=10, pady=10)
 
+    ## Handle calendar date selection and refresh appointment list
     def on_date_select(event):
         selected_date[0] = calendar.get_date()
         load_appointments(selected_date[0])
 
     calendar.bind("<<CalendarSelected>>", on_date_select)
 
+    ## Clear currently selected appointment and reset form fields
     def clear_selection():
         selected_apt[0] = None
         selected_card_apt[0] = None
+        # Deselect any highlighted card
+        try:
+            if selected_card_apt[0]:
+                selected_card_apt[0].configure(fg_color="#f8f9fa")
+        except Exception:
+            pass
+        # Reset to today's date
+        today = datetime.now().strftime('%Y-%m-%d')
+        selected_date[0] = today
+        try:
+            calendar.selection_set(datetime.now().date())
+        except Exception:
+            pass
         patient_var.set(patient_options[0] if patient_options else "")
         doctor_var.set(doctor_options[0] if doctor_options else "")
-        time_var.set("09:00")
-        status_var.set("scheduled")
+        time_dd.set("8AM")  # Set to display value, not internal value
+        status_dd.set("scheduled")  # Set directly on combobox
         notes_text.delete("1.0", "end")
         try:
             delete_btn.configure(state="disabled")
@@ -314,13 +341,60 @@ def show_appointments_view(parent):
     ctk.CTkLabel(form_container, text="Patient:", 
                 font=F(13, "bold"),
                 text_color="#2c3e50").pack(anchor="w", padx=10, pady=(15,5))
-    patients = db.query("SELECT * FROM patients ORDER BY id ASC")
+    patients = db.query("SELECT * FROM patients WHERE is_deleted=0 ORDER BY id ASC")
     patient_options = [f"{p['id']}: {p['name']} ({p['species']}) - {p['owner_name']}" for p in patients]
     patient_var = ctk.StringVar(value=patient_options[0] if patient_options else "")
-    patient_dd = ctk.CTkComboBox(form_container, variable=patient_var, values=patient_options, 
-                             state="readonly", height=35 + module_scale, font=F(12),
-                             dropdown_font=F(11))
-    patient_dd.pack(fill="x", padx=10, pady=(0,10))
+    
+    # Create a searchable patient selector with scrollable list
+    patient_search_frame = ctk.CTkFrame(form_container, fg_color="transparent")
+    patient_search_frame.pack(fill="x", padx=10, pady=(0,10))
+    
+    patient_entry = ctk.CTkEntry(patient_search_frame, placeholder_text="Search patients...", 
+                                  height=35 + module_scale, font=F(12),
+                                  fg_color="#f8f9fa", border_width=2, border_color="#dee2e6",
+                                  text_color="#2c3e50")
+    patient_entry.pack(fill="x", padx=0, pady=(0,5))
+    
+    # Create a scrollable frame for patient list
+    patient_list_container = ctk.CTkFrame(patient_search_frame, fg_color="#f8f9fa", border_width=2, border_color="#dee2e6")
+    patient_list_container.pack(fill="x", padx=0)
+    
+    patient_scroll_frame = ctk.CTkScrollableFrame(patient_list_container, fg_color="#f8f9fa", height=150)
+    patient_scroll_frame.pack(fill="both", expand=True, padx=0, pady=0)
+    
+    # Function to create scrollable patient list
+    def update_patient_list():
+        # Clear existing buttons
+        for widget in patient_scroll_frame.winfo_children():
+            widget.destroy()
+        
+        search_text = patient_entry.get().lower()
+        filtered = [p for p in patient_options if search_text in p.lower()] if search_text else patient_options
+        
+        if not filtered:
+            ctk.CTkLabel(patient_scroll_frame, text="No patients found", text_color="#999999", font=F(11)).pack(padx=10, pady=5)
+            return
+        
+        for patient in filtered:
+            def on_select(p=patient):
+                patient_var.set(p)
+                patient_entry.delete(0, "end")
+                patient_entry.insert(0, p)
+                update_patient_list()
+            
+            btn = ctk.CTkButton(patient_scroll_frame, text=patient, command=on_select,
+                               fg_color="#ffffff", hover_color="#e8f4f8", text_color="#2c3e50",
+                               font=F(11), height=32, anchor="w", border_width=1, border_color="#dee2e6")
+            btn.pack(fill="x", padx=5, pady=2)
+    
+    # Bind search input to update list
+    def on_search_input(event=None):
+        update_patient_list()
+    
+    patient_entry.bind("<KeyRelease>", on_search_input)
+    
+    # Initialize the list
+    update_patient_list()
 
     ctk.CTkLabel(form_container, text="Doctor:", 
                 font=F(13, "bold"),
@@ -343,10 +417,10 @@ def show_appointments_view(parent):
     ctk.CTkLabel(form_container, text="Time:", 
                 font=F(13, "bold"),
                 text_color="#2c3e50").pack(anchor="w", padx=10, pady=(10,5))
-    time_var = ctk.StringVar(value="08:00 AM")
+    time_var = ctk.StringVar(value="08:00")
     time_dd = ctk.CTkComboBox(form_container, variable=time_var,
-                             values=["08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM",
-                                    "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"],
+                             values=["8AM", "9AM", "10AM", "11AM",
+                                    "1PM", "2PM", "3PM", "4PM", "5PM"],
                              state="readonly", height=35 + module_scale, font=F(12))
     time_dd.pack(fill="x", padx=10, pady=(0,10))
 
@@ -369,6 +443,7 @@ def show_appointments_view(parent):
     selected_apt_label = ctk.CTkLabel(form_container, text="Selected Appointment ID: None", font=F(11))
     selected_apt_label.pack(anchor="e", padx=10, pady=(0,6))
 
+    ## Save or update appointment in the database with conflict checks
     def save_appointment():
         try:
             if not patient_var.get() or not doctor_var.get():
@@ -376,6 +451,7 @@ def show_appointments_view(parent):
                 return
 
             # Prefer the visible combobox value (user choice) over the StringVar
+            ## Safely obtain value from a combobox widget or fallback variable
             def safe_get(dd_widget, var):
                 try:
                     # CTkComboBox supports .get()
@@ -390,6 +466,7 @@ def show_appointments_view(parent):
                     return ""
 
             # robust ID parsing: handle values like "3: Name (...) - Owner" or plain ids
+            ## Parse an identifier from a combobox display string
             def parse_id(value):
                 if not value:
                     return ""
@@ -402,22 +479,21 @@ def show_appointments_view(parent):
                 except Exception:
                     return v
 
-            # normalize time (preserve AM/PM or exact input; do not convert to 24h)
+            # normalize time into 24-hour "HH:MM" for storage and comparisons
+            ## Normalize time strings into 24-hour HH:MM format for storage
             def normalize_time(t):
-                if not t:
-                    return ""
-                s = str(t).strip()
-                import re
-                # collapse whitespace
-                s = re.sub(r'\s+', ' ', s)
-                # ensure AM/PM is uppercase and separated by a space if present
-                s = re.sub(r'(?i)\s*(am|pm)$', lambda m: ' ' + m.group(1).upper(), s)
-                # add colon if user typed hours and minutes without one (e.g. 0800 or 800)
-                s = re.sub(r'^(?P<h>\d{1,2})(?P<m>\d{2})(?:\s*(?P<ap>(AM|PM|am|pm)))?$', 
-                           lambda m: f"{int(m.group('h')):02d}:{m.group('m')}{(' ' + m.group('ap').upper()) if m.group('ap') else ''}", s)
-                return s
+                """Convert time string to 24-hour HH:MM format for storage"""
+                try:
+                    # Handle both 12h and 24h formats
+                    if "AM" in t.upper() or "PM" in t.upper():
+                        dt = datetime.strptime(t.upper(), "%I:%M %p")
+                    else:
+                        dt = datetime.strptime(t, "%H:%M")
+                    return dt.strftime("%H:%M")
+                except Exception:
+                    return t
 
-            patient_raw = safe_get(patient_dd, patient_var)
+            patient_raw = safe_get(patient_entry, patient_var)
             doctor_raw = safe_get(doctor_dd, doctor_var)
             patient_id = parse_id(patient_raw)
             doctor_id = parse_id(doctor_raw)
@@ -503,7 +579,6 @@ def show_appointments_view(parent):
                 pass
 
             clear_selection()
-            # refresh calendar marks (in case date changed) and reload visible appointments
             try:
                 refresh_calendar_marks()
             except Exception:
@@ -512,16 +587,22 @@ def show_appointments_view(parent):
         except Exception as e:
             messagebox.showerror("Error", str(e))
     
+    ## Reload the appointments module view
+    def refresh_appointments_module():
+        """Completely refresh the entire appointments module"""
+        show_appointments_view(parent)
+
     btn_frame = ctk.CTkFrame(form_container, fg_color="transparent")
     btn_frame.pack(fill="x", padx=10, pady=(10,5))
 
-    ctk.CTkButton(btn_frame, text="💾 Save", command=save_appointment,
+    ctk.CTkButton(btn_frame, text=" Save", command=save_appointment,
                  fg_color="#2ecc71", hover_color="#27ae60",
                  height=45 + module_scale, font=F(14, "bold")).pack(side="left", padx=5, expand=True, fill="x")
-    ctk.CTkButton(btn_frame, text="📄 New", command=clear_selection,
+    ctk.CTkButton(btn_frame, text=" New", command=refresh_appointments_module,
                  fg_color="#3498db", hover_color="#2980b9",
                  height=45 + module_scale, font=F(14, "bold")).pack(side="left", padx=5, expand=True, fill="x")
 
+    ## Cancel the currently selected appointment (mark as cancelled)
     def cancel_selected():
         try:
             if not selected_apt[0]:
@@ -529,12 +610,13 @@ def show_appointments_view(parent):
                 return
             if messagebox.askyesno("Confirm Cancellation", "Are you sure you want to cancel this appointment?"):
                 db.execute("UPDATE appointments SET status=? WHERE id=?", ("cancelled", selected_apt[0]))
-                messagebox.showinfo("✅ Success", "Appointment cancelled successfully!")
+                messagebox.showinfo("Success", "Appointment cancelled successfully!")
                 clear_selection()
                 load_appointments(selected_date[0])
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+    ## Permanently delete the selected appointment from the database
     def delete_selected_appointment():
         try:
             if not selected_apt[0]:
@@ -542,7 +624,7 @@ def show_appointments_view(parent):
                 return
             if messagebox.askyesno("Confirm Delete", "This will permanently delete the appointment. Continue?"):
                 db.execute("DELETE FROM appointments WHERE id=?", (selected_apt[0],))
-                messagebox.showinfo("✅ Success", "Appointment deleted successfully!")
+                messagebox.showinfo("Success", "Appointment deleted successfully!")
                 clear_selection()
                 try:
                     refresh_calendar_marks()
@@ -552,7 +634,7 @@ def show_appointments_view(parent):
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
-    ctk.CTkButton(form_container, text="❌ Cancel Appointment", command=cancel_selected,
+    ctk.CTkButton(form_container, text="Cancel Appointment", command=cancel_selected,
                  fg_color="#e74c3c", hover_color="#c0392b",
                  height=45 + module_scale, font=F(14, "bold")).pack(fill="x", padx=10, pady=(5,8))
 
@@ -567,6 +649,7 @@ def show_appointments_view(parent):
 
     load_appointments(selected_date[0])
 
+## Initialize module-level `app` and `db` references used by this module
 def init_appointments(app_ref, db_ref):
     global app, db
     app = app_ref
